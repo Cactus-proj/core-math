@@ -187,17 +187,18 @@ double cr_acosh(double x){
       return 0.0 / 0.0; // return sNaN and raises invalid
   }
 
-  if(__builtin_expect((int64_t)ix.u<=0x3ff0000000000000ll, 0)){
-    if(ix.u==0x3ff0000000000000ull) return 0;
+  if(__builtin_expect((int64_t)ix.u<=0x3ff0000000000000ll, 0)){ // 0 <= x <= 1
+    if(ix.u==0x3ff0000000000000ull) return 0; // x=1
 #ifdef CORE_MATH_SUPPORT_ERRNO
     errno = EDOM;
 #endif
     return 0.0 / 0.0; // return sNaN and raises invalid
   }
+  // now x > 1
   double g;
   int off = 0x3fe;
   b64u64_u t = ix;
-  if(ix.u<0x3ff1e83e425aee63ull){ // 0 <= x < 0x1.1e83e425aee63p+0
+  if(ix.u<0x3ff1e83e425aee63ull){ // 1 < x < 0x1.1e83e425aee63p+0
     double z = x-1;
     double iz = (-0.25)/z, zt = 2*z;
     double sh = __builtin_sqrt(zt), sl = __builtin_fma(sh,sh,-zt)*(sh*iz);
@@ -208,7 +209,7 @@ double cr_acosh(double x){
     double z2 = z*z, z4 = z2*z2, ds = __builtin_fma(sh*z,(cl[0] + z*(((cl[1] + z*cl[2]) + z2*(cl[3] + z*cl[4])) + z4*((cl[5] + z*cl[6]) + z2*(cl[7] + z*cl[8])))), sl);
     /* fails with eps = ds*0x1.e3p-51 - 0x1p-104*sh, x=0x1.08008c1f86ecap+0
        and rndz (both with/without FMA contraction) */
-    double eps = ds*0x1.fcp-51 - 0x1p-104*sh;
+    double eps = ds*0x1.e4p-51 - 0x1p-104*sh;
     double lb = sh + (ds - eps), ub = sh + (ds + eps);
     if(lb == ub) return lb;
     return as_acosh_one(z, sh, sl);
