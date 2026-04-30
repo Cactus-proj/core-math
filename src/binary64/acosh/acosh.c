@@ -206,6 +206,8 @@ double cr_acosh(double x){
       -0x1.6e8b8e3e40d58p-11, 0x1.1c4ba825ac4fep-12, -0x1.c9045534e6d9ep-14, 0x1.71fedae26a76bp-15,
       -0x1.f1f4f8cc65342p-17};
     double z2 = z*z, z4 = z2*z2, ds = __builtin_fma(sh*z,(cl[0] + z*(((cl[1] + z*cl[2]) + z2*(cl[3] + z*cl[4])) + z4*((cl[5] + z*cl[6]) + z2*(cl[7] + z*cl[8])))), sl);
+    /* fails with eps = ds*0x1.e3p-51 - 0x1p-104*sh, x=0x1.08008c1f86ecap+0
+       and rndz (both with/without FMA contraction) */
     double eps = ds*0x1.fcp-51 - 0x1p-104*sh;
     double lb = sh + (ds - eps), ub = sh + (ds + eps);
     if(lb == ub) return lb;
