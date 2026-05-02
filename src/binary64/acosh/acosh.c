@@ -113,6 +113,7 @@ static double __attribute__((noinline)) as_acosh_one(double x, double sh, double
   return y0 + y1;
 }
 
+// coefficient of a linear piece-wise approximation of log2(x) in [1,2] range with an error ~< 5.8e-4
 static const struct {ushort c0; short c1;} B[] = {
   {301, 27565}, {7189, 24786}, {13383, 22167}, {18923, 19696}, {23845, 17361}, {28184, 15150},
   {31969, 13054}, {35231, 11064}, {37996, 9173}, {40288, 7372}, {42129, 5657}, {43542, 4020},
@@ -120,6 +121,7 @@ static const struct {ushort c0; short c1;} B[] = {
   {42929, -5622}, {41522, -6786}, {39825, -7905}, {37848, -8982}, {35602, -10020}, {33097, -11020},
   {30341, -11985}, {27345, -12916}, {24115, -13816}, {20661, -14685}, {16989, -15526}, {13107, -16339},
   {9022, -17126}, {4740, -17889}};
+// 20-bit approximation of 2^(-i/32)
 static const double r1[] =
   {0x1p+0, 0x1.f5076p-1, 0x1.ea4bp-1, 0x1.dfc98p-1, 0x1.d5818p-1,
    0x1.cb72p-1, 0x1.c199cp-1, 0x1.b7f76p-1, 0x1.ae8ap-1,
@@ -129,6 +131,7 @@ static const double r1[] =
    0x1.44e08p-1, 0x1.3dea6p-1, 0x1.371a8p-1, 0x1.306fep-1,
    0x1.29e9ep-1, 0x1.2387ap-1, 0x1.1d488p-1, 0x1.172b8p-1,
    0x1.11302p-1, 0x1.0b558p-1, 0x1.059bp-1, 0x1p-1};
+// 20-bit approximation of 2^(-i/1024)
 static const double r2[] =
   {0x1p+0, 0x1.ffa74p-1, 0x1.ff4eap-1, 0x1.fef62p-1, 0x1.fe9dap-1,
    0x1.fe452p-1, 0x1.fdeccp-1, 0x1.fd946p-1, 0x1.fd3c2p-1,
@@ -138,6 +141,7 @@ static const double r2[] =
    0x1.f8c6p-1, 0x1.f86e8p-1, 0x1.f8172p-1, 0x1.f7bfep-1,
    0x1.f768ap-1, 0x1.f7116p-1, 0x1.f6ba4p-1, 0x1.f6632p-1,
    0x1.f60c2p-1, 0x1.f5b52p-1, 0x1.f55e4p-1, 0x1.f5076p-1};
+// natural logarithm of 1/r1[i]
 static const double l1[][2] = {
   {0x0p+0, 0x0p+0}, {-0x1.269e2038315b3p-46, 0x1.62e4eacd4p-6},
   {-0x1.3f2558bddfc47p-45, 0x1.62e3ce7218p-5}, {0x1.07ea13c34efb5p-45, 0x1.0a2ab6d3ecp-4},
@@ -156,6 +160,7 @@ static const double l1[][2] = {
   {-0x1.a0233728405c5p-45, 0x1.3687b0e0b28p-1}, {-0x1.4dbdda10d2bf1p-45, 0x1.419ec5d3f68p-1},
   {0x1.f7d0a25d154f2p-44, 0x1.4cb5f9fc02p-1}, {0x1.15ede4d803b18p-44, 0x1.57cd28421a8p-1},
   {0x1.ef35793c7673p-45, 0x1.62e42fefa38p-1}};
+// natural logarithm of 1/r2[i]
 static const double l2[][2] = {
   {0x0p+0, 0x0p+0}, {0x1.5abdac3638e99p-44, 0x1.631ec81ep-11},
   {-0x1.16b8be9bbe239p-45, 0x1.62fd8127p-10}, {-0x1.364c6315542ebp-44, 0x1.0a2520508p-9},
