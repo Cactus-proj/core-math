@@ -249,10 +249,10 @@ double cr_acosh(double x){
     g = 0;
   }
   int ex = t.u>>52, e = ex - off;
-  t.u &= ~(u64)0>>12;
+  t.u &= ~(u64)0>>12; // zero out the exponent field
   double ed = e;
-  u64 i = t.u>>(52-5);
-  int64_t d = t.u & (~(u64)0>>17);
+  u64 i = t.u>>(52-5); // upper 5 bits of the significand
+  int64_t d = t.u & (~(u64)0>>17); // low 47 bits of the significand
   u64 j = (t.u + ((u64)B[i].c0<<33) + ((int64_t)B[i].c1*(d>>16)))>>(52-10);
   t.u |= (u64)0x3ff<<52;
   int i1 = j>>5, i2 = j&0x1f;
