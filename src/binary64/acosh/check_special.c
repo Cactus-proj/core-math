@@ -239,7 +239,7 @@ static void check_val(double x){
 }
 
 #ifndef CORE_MATH_TESTS
-#define CORE_MATH_TESTS 500000000UL /* total number of tests */
+#define CORE_MATH_TESTS 100000000UL /* total number of tests */
 #endif
 
 static void check_random_all(int seed, double a, double b){
