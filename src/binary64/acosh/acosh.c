@@ -179,6 +179,8 @@ static const double l2[][2] = {
   {0x1.68256e4329bdbp-44, 0x1.3688a1a8dp-6}, {0x1.7e9741da248c3p-44, 0x1.419edc7bap-6},
   {0x1.e330dccce602bp-45, 0x1.4cb7034fap-6}, {0x1.2f32b5d18eefbp-49, 0x1.57cd01187p-6},
   {-0x1.269e2038315b3p-46, 0x1.62e4eacd4p-6}};
+/* x+c[0]*x^2+c[1]*x^3+...+c[4]*x^6 is a degree-6 approximation of log(1+x),
+   with absolute error bounded by 2^-85.878 for |x| < 2^-11.296 */
 static const double c[] = {-0x1p-1, 0x1.555555555553p-2, -0x1.fffffffffffap-3, 0x1.99999e33a6366p-3, -0x1.555559ef9525fp-3};
 
 double cr_acosh(double x){
@@ -204,6 +206,8 @@ double cr_acosh(double x){
   int off = 0x3fe;
   b64u64_u t = ix;
   if(ix.u<0x3ff1e83e425aee63ull){ // 1 < x < 0x1.1e83e425aee63p+0
+    /* this branch was checked exhaustively, with and without FMA
+       contraction */
     double z = x-1;
     double iz = (-0.25)/z, zt = 2*z;
     double sh = __builtin_sqrt(zt), sl = __builtin_fma(sh,sh,-zt)*(sh*iz);
@@ -250,20 +254,23 @@ double cr_acosh(double x){
   }
   int ex = t.u>>52, e = ex - off;
   t.u &= ~(u64)0>>12; // zero out the exponent field
-  double ed = e;
-  u64 i = t.u>>(52-5); // upper 5 bits of the significand
+  double ed = e; // 2*x = (1+t/2^52)*2^ed
+  u64 i = t.u>>(52-5); // upper 5 bits of the significand (without leading 1)
   int64_t d = t.u & (~(u64)0>>17); // low 47 bits of the significand
   u64 j = (t.u + ((u64)B[i].c0<<33) + ((int64_t)B[i].c1*(d>>16)))>>(52-10);
   t.u |= (u64)0x3ff<<52;
   int i1 = j>>5, i2 = j&0x1f;
   double r = r1[i1]*r2[i2], dx = __builtin_fma(r, t.f, -1), dx2 = dx*dx;
   double f = dx2*((c[0] + dx*c[1]) + dx2*((c[2] + dx*c[3]) + dx2*c[4]));
+  /* l2h+l2l is a double-double approximation of log(2), with error less
+     than 2^-102.018, and l2h representable on 42 bits, so that l2h*ed
+     is exact */
   const double l2h = 0x1.62e42fefa38p-1, l2l = 0x1.ef35793c7673p-45;
   double lh = (l1[i1][1] + l2[i2][1]) + l2h*ed, ll = dx + l2l*ed;
   ll += g;
   ll += l1[i1][0] + l2[i2][0];
   ll += f;
-  double eps = 2.8e-19;
+  double eps = 0x1.4cp-62;
   double lb = lh + (ll - eps), ub = lh + (ll + eps);
   if(__builtin_expect(lb==ub, 1)) return lb;
   return as_acosh_refine(x, 0x1.71547652b82fep+0*lb);
