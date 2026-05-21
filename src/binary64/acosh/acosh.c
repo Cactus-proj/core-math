@@ -270,7 +270,7 @@ double cr_acosh(double x){
   ll += g;
   ll += l1[i1][0] + l2[i2][0];
   ll += f;
-  double eps = 0x1.4cp-62;
+  double eps = 0x1.4dp-62;
   double lb = lh + (ll - eps), ub = lh + (ll + eps);
   if(__builtin_expect(lb==ub, 1)) return lb;
   return as_acosh_refine(x, 0x1.71547652b82fep+0*lb);
