@@ -266,10 +266,11 @@ double cr_acosh(double x){
      than 2^-102.018, and l2h representable on 42 bits, so that l2h*ed
      is exact */
   const double l2h = 0x1.62e42fefa38p-1, l2l = 0x1.ef35793c7673p-45;
-  double lh = (l1[i1][1] + l2[i2][1]) + l2h*ed, ll = dx + l2l*ed;
-  ll += g;
-  ll += l1[i1][0] + l2[i2][0];
-  ll += f;
+  double lh = (l1[i1][1] + l2[i2][1]) + l2h*ed;
+  double t1 = (l2l*ed) + (l1[i1][0] + l2[i2][0]);
+  double t2 = f + t1;
+  double t3 = g + t2;
+  double ll = dx + t3;
   double eps = 0x1.4dp-62;
   double lb = lh + (ll - eps), ub = lh + (ll + eps);
   if(__builtin_expect(lb==ub, 1)) return lb;
