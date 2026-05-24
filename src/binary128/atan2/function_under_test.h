@@ -1,0 +1,3 @@
+#define cr_function_under_test cr_atan2q
+#define ref_function_under_test ref_atan2q
+#define CHECK_BOTH_SIGNS_ARG1
