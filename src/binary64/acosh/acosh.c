@@ -202,7 +202,7 @@ double cr_acosh(double x){
     return 0.0 / 0.0; // return sNaN and raises invalid
   }
   // now x > 1
-  double g;
+  double g, eps;
   int off = 0x3fe;
   b64u64_u t = ix;
   if(ix.u<0x3ff1e83e425aee63ull){ // 1 < x < 0x1.1e83e425aee63p+0
@@ -218,7 +218,7 @@ double cr_acosh(double x){
     double z2 = z*z, z4 = z2*z2, ds = __builtin_fma(sh*z,(cl[0] + z*(((cl[1] + z*cl[2]) + z2*(cl[3] + z*cl[4])) + z4*((cl[5] + z*cl[6]) + z2*(cl[7] + z*cl[8])))), sl);
     /* fails with eps = ds*0x1.ffp-51 - 0x1p-104*sh, x=0x1.00a800422847ap+0
        and rndz (both with/without FMA contraction) */
-    double eps = ds*0x1.00p-50 - 0x1p-104*sh;
+    eps = ds*0x1.00p-50 - 0x1p-104*sh;
     double lb = sh + (ds - eps), ub = sh + (ds + eps);
     if(lb == ub) return lb;
     return as_acosh_one(z, sh, sl);
@@ -231,26 +231,31 @@ double cr_acosh(double x){
     double tl, th = fasttwosum(x, sh, &tl); tl += sl;
     t.f = th;
     g = tl/th;
+    eps = 0x1.81p-63;
   } else if(ix.u<0x4087100000000000ull){
     /* 111.75 <= x < 738: this branch was tested exhaustively
        with/without FMA contraction */
     static const double cl[] = {0x1.5c4b6148816e2p-66, -0x1.000000000005cp-2, -0x1.7fffffebf3e6cp-4, -0x1.aab6691f2bae7p-5};
     double z = 1/(x*x);
     g = cl[0] + z*(cl[1] + z*(cl[2] + z*cl[3]));
+    eps = 0x1.c3p-63;
   } else if(ix.u<0x40e0100000000000ull){
     /* 738 <= x < 32896: this branch was tested exhaustively
        with/without FMA contraction */
     static const double cl[] = {-0x1.7f77c8429c6c6p-67, -0x1.ffffffffff214p-3, -0x1.8000268641bfep-4};
     double z = 1/(x*x);
     g = cl[0] + z*(cl[1] + z*cl[2]);
+    eps = 0x1.9ap-63;
   } else if(ix.u<0x41ea000000000000ull){ // 32896 <= x < 0x1.ap+31
     /* this branch was tested exhaustively with/without FMA contraction
        only for 32896 <= x < 2^16. */
     static const double cl[] = {0x1.7a0ed2effdd1p-67, -0x1.000000017d048p-2};
     double z = 1/(x*x);
     g = cl[0] + z*cl[1];
+    eps = 0x1.99p-63;
   } else { // 0x1.ap+31 <= x
     g = 0;
+    eps = 0x1.b2p-63;
   }
   int ex = t.u>>52, e = ex - off;
   t.u &= ~(u64)0>>12; // zero out the exponent field
@@ -271,7 +276,6 @@ double cr_acosh(double x){
   double t2 = f + t1;
   double t3 = g + t2;
   double ll = dx + t3;
-  double eps = 0x1.4dp-62;
   double lb = lh + (ll - eps), ub = lh + (ll + eps);
   if(__builtin_expect(lb==ub, 1)) return lb;
   return as_acosh_refine(x, 0x1.71547652b82fep+0*lb);
