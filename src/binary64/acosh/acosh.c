@@ -278,6 +278,7 @@ double cr_acosh(double x){
   double ll = dx + t3;
   double lb = lh + (ll - eps), ub = lh + (ll + eps);
   if(__builtin_expect(lb==ub, 1)) return lb;
+  // 0x1.71547652b82fep+0 approximates 1/log(2)
   return as_acosh_refine(x, 0x1.71547652b82fep+0*lb);
 }
 
