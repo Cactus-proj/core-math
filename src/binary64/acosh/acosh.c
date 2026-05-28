@@ -407,21 +407,29 @@ static double as_acosh_refine(double x, double a){
   static const double cl[3] = {-0x1p-3, 0x1.9999999a0754fp-4,-0x1.55555555c3157p-4};
   b64u64_u ix = {.f = x};
   double zh,zl;
-  if(ix.u<0x4190000000000000ull){
+  if(ix.u<0x4190000000000000ull){ // x < 2^26
     double x2h = x*x, x2l = __builtin_fma(x,x,-x2h);
     double wl, wh = x2h - 1;
     wh = fasttwosum(wh,x2l,&wl);
     double sh = __builtin_sqrt(wh), ish = 0.5/wh, sl = (ish*sh)*(wl - __builtin_fma(sh,sh,-wh));
     zh = fasttwosum(x, sh, &zl); zl += sl;
     zh = fasttwosum(zh, zl, &zl);
-  } else if(ix.u<0x4330000000000000ull){
+  } else if(ix.u<0x4330000000000000ull){ // x < 2^52
     zh = 2*x;
     zl = -0.5/x;
-  } else {
+  } else { // x >= 2^52
+    /* we don't set zh = 2*x since this will overflow for x > 2^1023,
+       instead we add 1 to e below with zl == 0 */
     zh = x;
     zl = 0;
   }
+  /* zh+zl is a double-double approximation of x+sqrt(x^2-1),
+     or of (x+sqrt(x^2-1))/2 for x >= 2^52 */
   b64u64_u t = {.f = zh};
+  /* We can't have zl=0 for 2^26 <= x < 2^52, since zl = -0.5/x.
+     For x < 2^26, zh+zl is an approximation of x+sqrt(x^2-1).
+     To have zl=0, we need x+sqrt(x^2-1) near a binary64 number.
+     This implies sqrt(x^2-1) is near a binary64 number. */
   int ex = t.u>>52, e = ex-0x3ff + (zl==0.0);
   t.u &= ~(u64)0>>12;
   t.u |= (u64)0x3ff<<52;
