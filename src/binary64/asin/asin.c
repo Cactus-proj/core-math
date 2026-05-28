@@ -339,7 +339,7 @@ double as_asin_refine(double x, double phi){
 }
 
 double as_asin_database(double x, double f){
-  // xdb[] is 64-bit encoding of |x| for x exceptional cases
+  // db[] is 64-bit encoding of |x| for x exceptional cases
   // sorted by increasing first values
   // those marked with * are required only without FMA contraction
   static const double db[][3] = {
