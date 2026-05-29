@@ -284,17 +284,15 @@ double cr_acosh(double x){
 
 static __attribute__((noinline)) double
 as_acosh_database(double x, double f){
+  // exceptional values sorted by increasing value
   static const double db[][3] = {
     {0x1.5bff041b260fep+0, 0x1.a6031cd5f93bap-1, 0x1p-55},
     {0x1.9efdca62b700ap+0, 0x1.104b648f113a1p+0, 0x1p-54},
-    {0x1.9efdca62b700ap+0, 0x1.104b648f113a1p+0, 0x1p-54},
     {0x1.a5bf3acfde4b2p+0, 0x1.1585720f35cd9p+0, -0x1p-54},
-    {0x1.d888dd2101d93p+1, 0x1.faf8b7a12cf9fp+0, -0x1p-54},
-    {0x1.0151def34c2b8p+5, 0x1.0a7b6e3fed72p+2, 0x1p-52},
     {0x1.45ea160ddc71fp+7, 0x1.725811dcf6782p+2, 0x1p-52},
-    {0x1.13570067acc9fp+9, 0x1.c04672343dccfp+2, -0x1p-52},
     {0x1.2a686e4b567cep+10, 0x1.f1c928e7f1e65p+2, 0x1p-52},
     {0x1.cb62eec26bd78p+15, 0x1.759a2ad4c4d56p+3, 0x1p-51},
+    {0x1.3bf8009648dcp+16, 0x1.7fce95ea5c653p+3, -0x1p-53},
   };
   int a = 0, b = sizeof(db)/sizeof(db[0]) - 1, m = (a + b)/2;
   while (a <= b) { // binary search
@@ -412,7 +410,8 @@ static double as_acosh_refine(double x, double a){
     double x2h = x*x, x2l = __builtin_fma(x,x,-x2h);
     double wl, wh = x2h - 1;
     wh = fasttwosum(wh,x2l,&wl);
-    double sh = __builtin_sqrt(wh), ish = 0.5/wh, sl = (ish*sh)*(wl - __builtin_fma(sh,sh,-wh));
+    double sh = __builtin_sqrt(wh),
+      sl = (wl - __builtin_fma(sh,sh,-wh)) / (2.0 * sh);
     zh = fasttwosum(x, sh, &zl); zl += sl;
     zh = fasttwosum(zh, zl, &zl);
   } else if(ix.u<0x4330000000000000ull){ // x < 2^52
