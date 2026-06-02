@@ -287,8 +287,8 @@ double cr_tanh(double x){
 	return x - x3/3;
       }
       static const double c[] = {
-	-0x1.5555555555554p-2, 0x1.1111111110d61p-3, -0x1.ba1ba1b983d8bp-5, 0x1.664f4820e99fp-6,
-	-0x1.226e11e4ac7cfp-7, 0x1.d6c4ab70668b6p-9, -0x1.7bbecb57ce996p-10, 0x1.1451443697dd8p-11};
+	-0x1.5555555555555p-2, 0x1.1111111110f33p-3, -0x1.ba1ba1b9b8ea6p-5, 0x1.664f4838e0a43p-6,
+	-0x1.226e17d1bc09bp-7, 0x1.d6c64dfba2565p-9, -0x1.7bdd094d327afp-10, 0x1.1535ad0c31d0ep-11};
       double x2 = x*x, x3 = x2*x, x4 = x2*x2, x8 = x4*x4;
       double p1 = (c[4] + x2*c[5]) + x4*(c[6] + x2*c[7]);
       double p0 = (c[0] + x2*c[1]) + x4*(c[2] + x2*c[3]);
