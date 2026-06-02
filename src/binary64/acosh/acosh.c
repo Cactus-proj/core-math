@@ -53,9 +53,25 @@ static inline double fasttwosum(double x, double y, double *e){
   return s;
 }
 
+/* Reference: Handbook of Floating-Point Arithmetic, Algorithm 4.4.
+   Theorem 4.1 from "On the Robustness of the 2Sum and Fast2Sum Algorithms"
+   by Sylvie Boldo, Stef Graillat and Jean-Michel Muller,
+   ACM Transactions on Mathematical Software, 2017 says:
+   t = (a+b) - s + alpha with |alpha| <= 2^(-p+1) ulp(s) [here p=53] */
+static inline double twosum(double a, double b, double *t){
+  double s = a + b;
+  double a_prime = s - b;
+  double b_prime = s - a_prime;
+  double delta_a = a - a_prime;
+  double delta_b = b - b_prime;
+  *t = delta_a + delta_b;
+  return s;
+}
+
+// this function returns twosum(xh,ch) + (xl + cl)
 static inline double adddd(double xh, double xl, double ch, double cl, double *l) {
-  double s = xh + ch, d = s - xh;
-  *l = ((ch - d) + (xh + (d - s))) + (xl + cl);
+  double s = twosum (xh, ch, l);
+  *l += xl + cl;
   return s;
 }
 
@@ -308,24 +324,33 @@ as_acosh_database(double x, double f){
   return f;
 }
 
+// a is an approximation of acosh(x)/log(2)
 static double as_acosh_refine(double x, double a){
+  // for 0 <= i <= 16, t1[i] is a 26-bit approximation of 2^(-i/2^4)
   static const double t1[] = {
     0x1p+0, 0x1.ea4afap-1, 0x1.d5818ep-1, 0x1.c199bep-1, 0x1.ae89f98p-1, 0x1.9c4918p-1,
     0x1.8ace54p-1, 0x1.7a1147p-1, 0x1.6a09e68p-1, 0x1.5ab07ep-1, 0x1.4bfdad8p-1,
     0x1.3dea65p-1, 0x1.306fe08p-1, 0x1.2387a7p-1, 0x1.172b84p-1, 0x1.0b5587p-1, 0x1p-1};
+  // for 0 <= i < 16, t2[i] is a 26-bit approximation of 2^(-i/2^8)
   static const double t2[] = {
     0x1p+0, 0x1.fe9d968p-1, 0x1.fd3c228p-1, 0x1.fbdba38p-1, 0x1.fa7c18p-1, 0x1.f91d8p-1,
     0x1.f7bfdbp-1, 0x1.f663278p-1, 0x1.f507658p-1, 0x1.f3ac948p-1, 0x1.f252b38p-1,
     0x1.f0f9c2p-1, 0x1.efa1bfp-1, 0x1.ee4aaap-1, 0x1.ecf483p-1, 0x1.eb9f488p-1};
+  // for 0 <= i < 16, t3[i] is a 26-bit approximation of 2^(-i/2^12)
   static const double t3[] = {
     0x1p+0, 0x1.ffe9d2p-1, 0x1.ffd3a58p-1, 0x1.ffbd798p-1, 0x1.ffa74e8p-1, 0x1.ff91248p-1,
     0x1.ff7afb8p-1, 0x1.ff64d38p-1, 0x1.ff4eac8p-1, 0x1.ff38868p-1, 0x1.ff22618p-1,
     0x1.ff0c3dp-1, 0x1.fef61ap-1, 0x1.fedff78p-1, 0x1.fec9d68p-1, 0x1.feb3b6p-1};
+  // for 0 <= i < 16, t4[i] is a 26-bit approximation of 2^(-i/2^16)
   static const double t4[] = {
     0x1p+0, 0x1.fffe9dp-1, 0x1.fffd3ap-1, 0x1.fffbd78p-1, 0x1.fffa748p-1, 0x1.fff9118p-1,
     0x1.fff7ae8p-1, 0x1.fff64cp-1, 0x1.fff4e9p-1, 0x1.fff386p-1, 0x1.fff2238p-1,
     0x1.fff0c08p-1, 0x1.ffef5d8p-1, 0x1.ffedfa8p-1, 0x1.ffec98p-1, 0x1.ffeb35p-1};
   static const double LL[4][17][3] = {
+    /* for 0 <= i <= 16, LL[0][i] is a triple-double approximation
+       (h,m,l) of -log(t1[i])/2, where h is a multiple of 2^-40 and |h|<0.347,
+       m is a multiple of 2^-91 and |m| < 2^-41, and |l| < 2^-92
+    */
     {{0x0p+0, 0x0p+0, 0x0p+0},
      {0x1.62e432b24p-6, -0x1.745af34bb54b8p-42, -0x1.17e3ec05cde7p-97},
      {0x1.62e42e4a8p-5, 0x1.111a4eadf312p-44, 0x1.cff3027abb119p-93},
@@ -344,6 +369,10 @@ static double as_acosh_refine(double x, double a){
      {0x1.4cb5ec93f4p-2, 0x1.3d50980ea513p-42, 0x1.67f0ea083b1c4p-93},
      {0x1.62e42fefa4p-2, -0x1.8432a1b0e264p-44, 0x1.803f2f6af40f3p-93},
     },
+    /* for 0 <= i < 16, LL[1][i] is a triple-double approximation
+       (h,m,l) of -log(t2[i])/2 (LL[1][16] is not used), where h is a
+       multiple of 2^-40 and |h| < 0.021, m is a multiple of 2^-91 and
+       |m| < 2^-41, and |l| < 2^-92 */
     {{0x0p+0, 0x0p+0, 0x0p+0},
      {0x1.62e462b4p-10, 0x1.061d003b97318p-42, 0x1.d7faee66a2e1ep-93},
      {0x1.62e44c92p-9, 0x1.95a7bff5e239p-42, -0x1.f7e788a87135p-95},
@@ -360,8 +389,11 @@ static double as_acosh_refine(double x, double a){
      {0x1.2059691e8p-6, -0x1.abcc3412f264p-43, -0x1.fe6e998e48673p-95},
      {0x1.3687a768p-6, -0x1.43901e5c97a9p-42, 0x1.b54cdd52a5d88p-96},
      {0x1.4cb5eb5d8p-6, -0x1.8f106f00f13b8p-42, -0x1.8f793f5fce148p-93},
-     {0x1.62e432b24p-6, -0x1.745af34bb54b8p-42, -0x1.17e3ec05cde7p-97},
     },
+    /* for 0 <= i < 16, LL[2][i] is a triple-double approximation
+       (h,m,l) of -log(t3[i])/2 (LL[2][16] is not used), where h is a
+       multiple of 2^-40 and |h| < 0.002, m is a multiple of 2^-91 and
+       |m| < 2^-41, and |l| < 2^-92 */
     {{0x0p+0, 0x0p+0, 0x0p+0},
      {0x1.62e7bp-14, -0x1.868625640a68p-44, -0x1.34bf0db910f65p-93},
      {0x1.62e35f6p-13, -0x1.2ee3d96b696ap-43, 0x1.a2948cd558655p-94},
@@ -378,8 +410,11 @@ static double as_acosh_refine(double x, double a){
      {0x1.2059a338p-10, -0x1.96422d90df4p-44, -0x1.90800fbbf2ed3p-94},
      {0x1.36879824p-10, 0x1.0f9054001812p-44, 0x1.9567e01e48f9ap-93},
      {0x1.4cb602cp-10, -0x1.0d709a5ec0b5p-43, 0x1.253dfd44635d2p-94},
-     {0x1.62e462b4p-10, 0x1.061d003b97318p-42, 0x1.d7faee66a2e1ep-93},
     },
+    /* for 0 <= i < 16, LL[3][i] is a triple-double approximation
+       (h,m,l) of -log(t4[i])/2 (LL[3][16] is not used), where h is a
+       multiple of 2^-40 and |h| < 0.001, m is a multiple of 2^-91 and
+       |m| < 2^-41, and |l| < 2^-92 */
     {{0x0p+0, 0x0p+0, 0x0p+0},
      {0x1.63007cp-18, -0x1.db0e38e5aaaap-43, 0x1.259a7b94815b9p-93},
      {0x1.6300f6p-17, 0x1.2b1c75580438p-44, 0x1.78cabba01e3e4p-93},
@@ -396,7 +431,6 @@ static double as_acosh_refine(double x, double a){
      {0x1.205d134p-14, -0x1.214a2e893fccp-43, 0x1.548a9500c9822p-93},
      {0x1.3685e28p-14, 0x1.e23588646103p-43, 0x1.2a97b26da2d88p-94},
      {0x1.4cb6c18p-14, 0x1.2b7cfcea9e0d8p-42, -0x1.5095048a6b824p-93},
-     {0x1.62e7bp-14, -0x1.868625640a68p-44, -0x1.34bf0db910f65p-93},
     },
   };
   static const double ch[][2] = {
@@ -427,18 +461,28 @@ static double as_acosh_refine(double x, double a){
   /* zh+zl is a double-double approximation of x+sqrt(x^2-1),
      or of (x+sqrt(x^2-1))/2 for x >= 2^52 */
   b64u64_u t = {.f = zh};
-  int ex = t.u>>52, e = ex-0x3ff + huge;
+  int ex = t.u>>52, e = ex - 0x3ff + huge; // 0 <= e <= 1024
   t.u &= ~(u64)0>>12;
   t.u |= (u64)0x3ff<<52;
+  // now 1 <= t < 2 and x=sqrt(x^2-1) ~ t*2^e
   double ed = e;
   b64u64_u v = {.f = a - ed + 0x1.00008p+0};
-  u64 i = (v.u - ((u64)0x3ff<<52))>>(52-16);
+  // since a ~ log2(x+sqrt(x^2-1)) and x+sqrt(x^2-1) ~ 2^e*t
+  // we have a ~ e+log2(t) thus a-e ~ log2(t)
+  u64 i = (v.u - ((u64)0x3ff<<52))>>(52-16); // i = floor(2^16*(v-1))
   int i1 = (i>>12)&0x1f, i2 = (i>>8)&0xf, i3 = (i>>4)&0xf, i4 = i&0xf;
   const double l20 = 0x1.62e42fefa38p-2, l21 = 0x1.ef35793c768p-46, l22 = -0x1.9ff0342542fc3p-91;
   double el2 = l22*ed, el1 = l21*ed, el0 = l20*ed;
   double L[3];
+  /* since all LL[.][.][0] are multiples of 2^-40, |LL[0][i1][0]| < 0.347,
+     |LL[1][i2][0]| < 0.021, |LL[2][i3][0]| < 0.002, |LL[3][i4][0]| < 0.001,
+     the sum L[0] is exact and less than 0.371 */
   L[0] = LL[0][i1][0] + LL[1][i2][0] + (LL[2][i3][0] + LL[3][i4][0]);
+  /* since all LL[.][.][1] are multiples of 2^-91 and less than 2^-41 in
+     absolute value, the sum L[1] is exact and less than 2^-39 */
   L[1] = LL[0][i1][1] + LL[1][i2][1] + (LL[2][i3][1] + LL[3][i4][1]);
+  /* since all  LL[.][.][2] are less than 2^-92, the sum L[2] is less
+     than 2^-90 */
   L[2] = LL[0][i1][2] + LL[1][i2][2] + (LL[2][i3][2] + LL[3][i4][2]);
   L[0] += el0;
   double t12 = t1[i1]*t2[i2], t34 = t3[i3]*t4[i4];
@@ -448,7 +492,7 @@ static double as_acosh_refine(double x, double a){
   double xl, xh = fasttwosum(dh-1, dl, &xl);
   if(zl != 0.0){
     t.f = zl;
-    t.u -= (int64_t)e<<52;
+    t.u -= (int64_t)e<<52; // divide by 2^e like t was zh/2^e
     xl += th*t.f;
   }
   xh = adddd(xh, xl, sh, sl, &xl);
