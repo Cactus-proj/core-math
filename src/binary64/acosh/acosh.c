@@ -96,10 +96,10 @@ static inline double mulddd(double xh, double xl, double ch, double *l){
 
 static inline double polydd(double xh, double xl, int n, const double c[][2], double *l){
   int i = n-1;
-  double ch = c[i][0] + *l, cl = ((c[i][0] - ch) + *l) + c[i][1];
+  double cl, ch = fasttwosum (c[i][0], *l, &cl);
   while(--i>=0){
     ch = muldd_acc(xh, xl, ch, cl, &cl);
-    double th = ch + c[i][0], tl = (c[i][0] - th) + ch;
+    double tl, th = fasttwosum (c[i][0], ch, &tl);
     ch = th;
     cl += tl + c[i][1];
   }
