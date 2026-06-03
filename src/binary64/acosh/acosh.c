@@ -436,7 +436,7 @@ static double as_acosh_refine(double x, double a){
   static const double ch[][2] = {
     {0x1p-1, 0x1.24b67ee516e3bp-111}, {-0x1p-2, -0x1.932ce43199a8dp-110}, {0x1.5555555555555p-3, 0x1.55540c15cf91fp-57},
   };
-  static const double cl[3] = {-0x1p-3, 0x1.9999999a0754fp-4,-0x1.55555555c3157p-4};
+  static const double cl[3] = {-0x1p-3, 0x1.9999999a0754fp-4, -0x1.55555555c3157p-4};
   b64u64_u ix = {.f = x};
   double zh,zl;
   int huge = 0; // exponent adjustment
