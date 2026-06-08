@@ -295,6 +295,11 @@ double cr_tanh(double x){
       p0 += x8*p1;
       p0 *= x3;
       double rl, rh = fasttwosum(x,p0,&rl);
+      /* The branch 0x1.d12ed0af1a27fp-27 <= x < 0x1p-26 was checked
+         exhaustively (with and without fma contraction) with revision 1820535,
+         with the error bound e = x3*0x1.ap-52 decreased to e = x3*0x1.4dp-52.
+         It fails with 0x1.4cp-52 and x=0x1.27a0e7f47f0fap-4 (rndz, no fma
+         contraction). */
       double e = x3*0x1.ap-52, lb = rh + (rl - e), ub = rh + (rl + e);
       if(lb == ub) return lb;
       return as_tanh_zero(x);
