@@ -270,8 +270,7 @@ double cr_tanh(double x){
   double t0h = t0[i0][1], t1h = t1[i1][1], th = t0h*t1h, tl;
   if(aix<0x400d76c8b4395810ull){ // |x| ~< 3.683
     if(__builtin_expect(aix<0x3fd0000000000000ull, 0)){ // |x| < 0x1p-2
-      if(__builtin_expect(aix<0x3e10000000000000ull, 0)){ // |x| < 0x1p-30
-	if(__builtin_expect(aix<0x3df0000000000000ull, 0)){ // |x| < 0x1p-32
+      if(__builtin_expect(aix<0x3e4d12ed0af1a27full, 0)){ // |x| < 0x1.d12ed0af1a27fp-27
 	  if(__builtin_expect(!aix, 0)) return x;
           /* We have underflow when 0 < |x| < 2^-1022 or when |x| = 2^-1022
              and rounding towards zero. */
@@ -282,10 +281,7 @@ double cr_tanh(double x){
             errno = ERANGE; // underflow
 #endif
           return res;
-	}
-	double x3 = x*x*x;
-	return x - x3/3;
-      }
+      } // endif |x| < 0x1.d12ed0af1a27fp-27
       static const double c[] = {
 	-0x1.5555555555555p-2, 0x1.1111111110f33p-3, -0x1.ba1ba1b9b8ea6p-5, 0x1.664f4838e0a43p-6,
 	-0x1.226e17d1bc09bp-7, 0x1.d6c64dfba2565p-9, -0x1.7bdd094d327afp-10, 0x1.1535ad0c31d0ep-11};
@@ -298,7 +294,7 @@ double cr_tanh(double x){
       double e = x3*0x1.ap-52, lb = rh + (rl - e), ub = rh + (rl + e);
       if(lb == ub) return lb;
       return as_tanh_zero(x);
-    }
+    } // endif |x| < 0x1p-2
 
     double t0l = t0[i0][0], t1l = t1[i1][0];
     tl = t0h*t1l + t1h*t0l + __builtin_fma(t0h, t1h,-th);
@@ -323,7 +319,8 @@ double cr_tanh(double x){
     rl *= __builtin_copysign(2, x);
     double lb = rh + (rl - e), ub = rh + (rl + e);
     if(lb == ub) return lb;
-  } else {
+  } // endif |x| ~< 3.683
+  else {
     static const double l2 = -0x1.62e42fefa39efp-14;
     double dx = __builtin_fma(l2, t, -ax), dx2 = dx*dx;
     double p = dx*((ch[0] + dx*ch[1]) + dx2*(ch[2] + dx*ch[3]));
