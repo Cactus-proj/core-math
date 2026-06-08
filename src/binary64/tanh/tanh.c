@@ -297,9 +297,15 @@ double cr_tanh(double x){
       double rl, rh = fasttwosum(x,p0,&rl);
       /* The branch 0x1.d12ed0af1a27fp-27 <= x < 0x1p-26 was checked
          exhaustively (with and without fma contraction) with revision 1820535,
-         with the error bound e = x3*0x1.ap-52 decreased to e = x3*0x1.4dp-52.
+         with the error bound e = x3*0x1.4dp-52.
          It fails with 0x1.4cp-52 and x=0x1.27a0e7f47f0fap-4 (rndz, no fma
-         contraction). */
+         contraction).
+         The interval [0x1p-3, 0x1.004p-3] was
+         checked exhaustively with rndz and without fma contraction,
+         with error bound e = x3*0x1.80p-52: no failure.
+         The interval [0x1.015891c9eaef8p-3, 0x1.019891c9eaef8p-3] was
+         checked exhaustively with rndz and without fma contraction,
+         with error bound e = x3*0x1.80p-52: no failure. */
       double e = x3*0x1.ap-52, lb = rh + (rl - e), ub = rh + (rl + e);
       if(lb == ub) return lb;
       return as_tanh_zero(x);
