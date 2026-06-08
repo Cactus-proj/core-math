@@ -1,6 +1,10 @@
 /* Correctly rounded hyperbolic tangent function for binary64 values.
 
-Copyright (c) 2023 Alexei Sibidanov.
+Copyright (c) 2023-2026 Alexei Sibidanov, Cyprien Peignier, Paul Zimmermann
+
+Alexei Sibidanov designed the original algorithm, while Cyprien Peignier and
+Paul Zimmermann extended the fma formula for |x0| <= 0x1.d12ed0af1a27fp-27,
+and improved the minimax polynomial for x0 <= |x| < 0.25.
 
 This file is part of the CORE-MATH project
 (https://core-math.gitlabpages.inria.fr/).
@@ -270,7 +274,7 @@ double cr_tanh(double x){
   double t0h = t0[i0][1], t1h = t1[i1][1], th = t0h*t1h, tl;
   if(aix<0x400d76c8b4395810ull){ // |x| ~< 3.683
     if(__builtin_expect(aix<0x3fd0000000000000ull, 0)){ // |x| < 0x1p-2
-      if(__builtin_expect(aix<0x3e4d12ed0af1a27full, 0)){ // |x| < 0x1.d12ed0af1a27fp-27
+      if(__builtin_expect(aix<=0x3e4d12ed0af1a27full, 0)){ // |x| <= 0x1.d12ed0af1a27fp-27
 	  if(__builtin_expect(!aix, 0)) return x;
           /* We have underflow when 0 < |x| < 2^-1022 or when |x| = 2^-1022
              and rounding towards zero. */
@@ -281,7 +285,7 @@ double cr_tanh(double x){
             errno = ERANGE; // underflow
 #endif
           return res;
-      } // endif |x| < 0x1.d12ed0af1a27fp-27
+      } // endif |x| <= 0x1.d12ed0af1a27fp-27
       static const double c[] = {
 	-0x1.5555555555555p-2, 0x1.1111111110f33p-3, -0x1.ba1ba1b9b8ea6p-5, 0x1.664f4838e0a43p-6,
 	-0x1.226e17d1bc09bp-7, 0x1.d6c64dfba2565p-9, -0x1.7bdd094d327afp-10, 0x1.1535ad0c31d0ep-11};
