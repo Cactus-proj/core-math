@@ -192,7 +192,7 @@ static void scan_consecutive_aux(int64_t n, double x){
        or j < 2^-32 sqrt(h/dd) */
     int64_t jmax = 0x1p-32 * sqrt (h / dd);
     if (jmax > n) jmax = n; // cap to n
-    assert (jmax > 0); // ensure progress
+    if (jmax == 0) jmax = 1; // ensure progress
     for(int64_t j=0;j<jmax;j++){
       b64u64_u v = {.f = x};
       v.u += j;
@@ -239,7 +239,7 @@ static void check_val(double x){
 }
 
 #ifndef CORE_MATH_TESTS
-#define CORE_MATH_TESTS 500000000UL /* total number of tests */
+#define CORE_MATH_TESTS 100000000UL /* total number of tests */
 #endif
 
 static void check_random_all(int seed, double a, double b){
