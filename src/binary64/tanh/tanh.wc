@@ -31307,3 +31307,6 @@
 0x1.db5c3a265665ep-776
 0x1.e142a0c545cc2p-857
 0x1.0000003fdf17ep-3
+# the following value defeats the logic of the rounding test for rndz
+# with e = x3*0x1.abp-52
+0x1.01e4ac271031cp-5
