@@ -31310,5 +31310,6 @@
 # the following value defeats the logic of the rounding test for rndz
 # with e = x3*0x1.abp-52
 0x1.01e4ac271031cp-5
-# the following value fails with a reduced error bound
+# the following values fail with a reduced error bound
 0x1.23063ba335f82p+0
+0x1.2447da351df3fp+0
