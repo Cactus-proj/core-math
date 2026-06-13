@@ -723,7 +723,7 @@ static inline void sqrhu6(u6x64 o, const u6x64 a){
 }
 
 static inline __float128 reinterpret_u128_as_f128(u128 t){
-#if defined(__x86_64__) && !defined(__clang__)
+#if defined(__SSE4_1__) && !defined(__clang__)
   // put u128 into xmm register
   __m128i m = {0, 0};
   m = _mm_insert_epi64 (m, t, 0);
@@ -738,7 +738,7 @@ static inline __float128 reinterpret_u128_as_f128(u128 t){
 }
 
 static inline u128 reinterpret_f128_as_u128(__float128 z){
-#if defined(__x86_64__) && !defined(__clang__)
+#if defined(__SSE4_1__) && !defined(__clang__)
   __m128i t;
   asm("" : "=x" (t) :"0" (z));
   u64 h = _mm_extract_epi64(t, 1);
