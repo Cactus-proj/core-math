@@ -325,7 +325,13 @@ int fillbuf(char **buf, size_t *nbuf){
     if (ncom) memset(ncom, 0, *nbuf - (ncom - pos));
      // check that buffer is not empty
     int nonempty = 0;
-    for (size_t i = 0, imax = strlen(pos); i<imax; i++) if (!isspace(pos[i])) { nonempty = 1; break;}
+    for (size_t i = 0, imax = strlen(pos); i<imax; i++) {
+      if (pos[i] == ',') pos[i] = ' ';
+      if (pos[i] == '|') pos[i] = ' ';
+      if (pos[i] == ';') pos[i] = ' ';
+      if (pos[i] == '&') pos[i] = ' ';
+      if (!isspace(pos[i])) nonempty = 1;
+    }
     if (nonempty) break;
   }
   if(nget == -1) {
