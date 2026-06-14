@@ -34,9 +34,7 @@ SOFTWARE.
 #include <string.h>
 #include <fenv.h>
 #include <getopt.h>
-#ifdef CORE_MATH_SUPPORT_ERRNO
 #include <errno.h>
-#endif
 #include <math.h>
 #include <ctype.h>
 #include <quadmath.h>
@@ -78,6 +76,7 @@ int64_t parselong(const char *str){
 
 int failures = 0;
 int maxfailures = 10;
+int noflagreset = 0;
 
 int main(int argc, char *argv[]){
   static struct option opts[] = {
@@ -86,6 +85,7 @@ int main(int argc, char *argv[]){
     { "rndu",       no_argument, 0, 'u'},
     { "rndd",       no_argument, 0, 'd'},
     { "help",       no_argument, 0, 'h'},
+    { "nofl",       no_argument, 0, 'f'},
     {  "rnd", required_argument, 0, 'r'},
     {"input", required_argument, 0, 'i'},
     { "maxf", required_argument, 0, 'm'},
@@ -94,13 +94,14 @@ int main(int argc, char *argv[]){
   instream = stdin;
   const char *fname = NULL;
   while (1) {
-    int ind = 0, c = getopt_long(argc, argv, "nudzhr:i:x:m:s:", opts, &ind);
+    int ind = 0, c = getopt_long(argc, argv, "nudzhfr:i:x:m:s:", opts, &ind);
     if (c == -1) break;
     switch (c) {
     case 'n': rnd = 0; break;
     case 'z': rnd = 1; break;
     case 'u': rnd = 2; break;
     case 'd': rnd = 3; break;
+    case 'f': noflagreset = 1; break;
     case 'm': maxfailures = parselong(optarg); break;
     case 'r':
       rnd = parselong(optarg);
@@ -259,6 +260,7 @@ void check (__float128 x, __float128 y){
     error ("Spurious errno=ERANGE", x, y, zt);
 #endif
 
+  if(noflagreset) return;
   // Check flags are not reset
   // check underflow flag is not reset
   feraiseexcept ( FE_UNDERFLOW);
@@ -306,6 +308,10 @@ void test(){
   while (nextarg(&x,&y)) {
     check (x, y);
     ++count;
+#if defined(CHECK_BOTH_SIGNS_ARG1)
+    check (-x, y);
+    ++count;
+#endif
   }
   printf("%d tests passed, %d failure(s)\n", count, failures);
 }
@@ -319,7 +325,13 @@ int fillbuf(char **buf, size_t *nbuf){
     if (ncom) memset(ncom, 0, *nbuf - (ncom - pos));
      // check that buffer is not empty
     int nonempty = 0;
-    for (size_t i = 0, imax = strlen(pos); i<imax; i++) if (!isspace(pos[i])) { nonempty = 1; break;}
+    for (size_t i = 0, imax = strlen(pos); i<imax; i++) {
+      if (pos[i] == ',') pos[i] = ' ';
+      if (pos[i] == '|') pos[i] = ' ';
+      if (pos[i] == ';') pos[i] = ' ';
+      if (pos[i] == '&') pos[i] = ' ';
+      if (!isspace(pos[i])) nonempty = 1;
+    }
     if (nonempty) break;
   }
   if(nget == -1) {
