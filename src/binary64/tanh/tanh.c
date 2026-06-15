@@ -328,8 +328,8 @@ double cr_tanh(double x){
     double rqh = 1/qh, rql = (ql*rqh + __builtin_fma(rqh,qh,-1))*-rqh;
     ph = muldd_acc(ph,pl, rqh,rql, &pl);
 
-    // fails with e = rh*0x1.ffp-63 and x=0x1.a011287831238p+1 (rndu, no fma)
-    double e = rh*0x1p-62;
+    // fails with e = rh*0x1.0ap-63 and x=0x1.a0112a16e9318p+1 (rndu, no fma)
+    double e = rh*0x1.0bp-62;
     rh = fasttwosub(0.5, ph, &rl); rl -= pl;
     rh *= __builtin_copysign(2, x);
     rl *= __builtin_copysign(2, x);
