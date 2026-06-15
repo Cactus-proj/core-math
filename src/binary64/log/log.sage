@@ -163,3 +163,55 @@ def inverse():
          print (i,maxz)
       l.append(r)
    return l
+
+def best_inv2(xmin,xmax):
+   # |r*x-1| is minimal when r*xmin-1 = 1-r*xmax
+   # thus r = 2/(xmin+xmax)
+   ropt = 2/(xmin+xmax)
+   zmin = abs(ropt*xmin-1)
+   u = xmin.ulp() # x.ulp()=u for xmin<=x<=xmax
+   # we need a loop since the final value of z might exceed 2^53*u*2^e
+   while true:
+      # we want that r*x-1 is exact
+      # if r=q*2^e with q integer, then r*x is an integer multiple of u*2^e
+      # thus since max|r*x-1| >= zmin, we need zmin <= 2^53*u*2^e
+      # thus 2^e >= zmin/(2^53*u) thus e >= log2(zmin/u)-53
+      e = ceil(log(zmin/u)/log(2.)-53)
+      q = round(ropt/2^e)
+      r = RR(q*2^e)
+      zmin = abs(xmin.exact_rational()*r.exact_rational()-1)
+      zmax = abs(xmax.exact_rational()*r.exact_rational()-1)
+      z = n(max(zmin,zmax))
+      # check that z <= 2^53*u*2^e
+      if z <= 2^53*u*2^e:
+         break
+      # else use z as new value of zmin
+      zmin = z
+   return r, z
+
+# this is another way of generating the _INVERSE table
+# it produces different values of r for some values of i
+# but the maximal value of |r*x-1| is the same
+# l2=inverse2()
+# 369 0.00212097167968735
+def inverse2():
+   k = 9
+   l = []
+   maxz = 0
+   x0 = RR("0x1.6a09e667f3bcdp-1",16)
+   x1 = 2*x0
+   imin = ZZ(floor(x0*2^k))
+   imax = ZZ(floor(x1*2^k))
+   for i in range(imin,imax+1):
+      xmin = RR(i*2^-k)
+      if xmin < x0:
+         xmin = x0
+      xmax = RR((i+1)*2^-k).nextbelow()
+      if xmax >= x1:
+         xmax = x1.nextbelow()
+      r,z = best_inv2(xmin,xmax)
+      if z>maxz:
+         maxz = z
+         print (i,maxz)
+      l.append(r)
+   return l
