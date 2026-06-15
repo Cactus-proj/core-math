@@ -140,9 +140,10 @@ def best_inv(xmin,xmax,p):
    return bestr, bestz
 
 # generate table _INVERSE
+# l=inverse()
+# 369 0.00212097167968735
 def inverse():
    k = 9
-   R = RealField(10,rnd='RNDU')
    l = []
    maxz = 0
    x0 = RR("0x1.6a09e667f3bcdp-1",16)
