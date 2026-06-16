@@ -247,7 +247,7 @@ double cr_tanh(double x){
   u64 aix = ix.u;
   /* for |x| >= 0x1.30fc1931f09cap+4, tanh(x) rounds to +1 or -1 to nearest,
      this avoid a spurious overflow in the computation of v0 below */
-  if (__builtin_expect (aix >=0x40330fc1931f09caull, 0)) {
+  if (__builtin_expect (aix >= 0x40330fc1931f09caull, 0)) {
     if(aix>0x7ff0000000000000ull) return x + x; // nan
     double f = __builtin_copysign(1.0, x);
     if(aix==0x7ff0000000000000ull) return f;
@@ -328,7 +328,10 @@ double cr_tanh(double x){
     double rqh = 1/qh, rql = (ql*rqh + __builtin_fma(rqh,qh,-1))*-rqh;
     ph = muldd_acc(ph,pl, rqh,rql, &pl);
 
-    // fails with e = rh*0x1.0ap-63 and x=0x1.a0112a16e9318p+1 (rndu, no fma)
+    /* This branch was tested exhaustively with/without fma contraction.
+       During this search, a failure was found with the original error
+       bound (e = rh*0x1p-62) and x=0x1.a0112a16e9318p+1 (rndu, no fma
+       contraction). */
     double e = rh*0x1.0bp-62;
     rh = fasttwosub(0.5, ph, &rl); rl -= pl;
     rh *= __builtin_copysign(2, x);
@@ -336,7 +339,7 @@ double cr_tanh(double x){
     double lb = rh + (rl - e), ub = rh + (rl + e);
     if(lb == ub) return lb;
   } // endif |x| ~< 3.683
-  else {
+  else { // 3.683 ~< x < 0x1.30fc1931f09cap+4
     static const double l2 = -0x1.62e42fefa39efp-14;
     double dx = __builtin_fma(l2, t, -ax), dx2 = dx*dx;
     double p = dx*((ch[0] + dx*ch[1]) + dx2*(ch[2] + dx*ch[3]));
