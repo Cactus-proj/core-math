@@ -345,6 +345,7 @@ double cr_tanh(double x){
     double p = dx*((ch[0] + dx*ch[1]) + dx2*(ch[2] + dx*ch[3]));
     double rh = th*sp.f;
     rh += (p + ((2*0x1.3p-55)*ax))*rh;
+    // fails with e = rh*0x1.f8p-50 and x=0x1.e7019c5f002c2p+1 (rndu, with/without fma contraction)
     double e = rh*0x1.1p-49;
     rh = (2*rh)/(1 + rh);
     double one = __builtin_copysign(1,x);
