@@ -1,6 +1,10 @@
 /* Correctly rounded hyperbolic tangent function for binary64 values.
 
-Copyright (c) 2023 Alexei Sibidanov.
+Copyright (c) 2023-2026 Alexei Sibidanov, Cyprien Peignier, Paul Zimmermann
+
+Alexei Sibidanov designed the original algorithm, while Cyprien Peignier and
+Paul Zimmermann extended the fma formula for |x0| <= 0x1.d12ed0af1a27fp-27,
+and improved the minimax polynomial for x0 <= |x| < 0.25.
 
 This file is part of the CORE-MATH project
 (https://core-math.gitlabpages.inria.fr/).
@@ -243,7 +247,7 @@ double cr_tanh(double x){
   u64 aix = ix.u;
   /* for |x| >= 0x1.30fc1931f09cap+4, tanh(x) rounds to +1 or -1 to nearest,
      this avoid a spurious overflow in the computation of v0 below */
-  if (__builtin_expect (aix >=0x40330fc1931f09caull, 0)) {
+  if (__builtin_expect (aix >= 0x40330fc1931f09caull, 0)) {
     if(aix>0x7ff0000000000000ull) return x + x; // nan
     double f = __builtin_copysign(1.0, x);
     if(aix==0x7ff0000000000000ull) return f;
@@ -270,7 +274,7 @@ double cr_tanh(double x){
   double t0h = t0[i0][1], t1h = t1[i1][1], th = t0h*t1h, tl;
   if(aix<0x400d76c8b4395810ull){ // |x| ~< 3.683
     if(__builtin_expect(aix<0x3fd0000000000000ull, 0)){ // |x| < 0x1p-2
-      if(__builtin_expect(aix<0x3e4d12ed0af1a27full, 0)){ // |x| < 0x1.d12ed0af1a27fp-27
+      if(__builtin_expect(aix<=0x3e4d12ed0af1a27full, 0)){ // |x| <= 0x1.d12ed0af1a27fp-27
 	  if(__builtin_expect(!aix, 0)) return x;
           /* We have underflow when 0 < |x| < 2^-1022 or when |x| = 2^-1022
              and rounding towards zero. */
@@ -281,7 +285,7 @@ double cr_tanh(double x){
             errno = ERANGE; // underflow
 #endif
           return res;
-      } // endif |x| < 0x1.d12ed0af1a27fp-27
+      } // endif |x| <= 0x1.d12ed0af1a27fp-27
       static const double c[] = {
 	-0x1.5555555555555p-2, 0x1.1111111110f33p-3, -0x1.ba1ba1b9b8ea6p-5, 0x1.664f4838e0a43p-6,
 	-0x1.226e17d1bc09bp-7, 0x1.d6c64dfba2565p-9, -0x1.7bdd094d327afp-10, 0x1.1535ad0c31d0ep-11};
@@ -293,9 +297,15 @@ double cr_tanh(double x){
       double rl, rh = fasttwosum(x,p0,&rl);
       /* The branch 0x1.d12ed0af1a27fp-27 <= x < 0x1p-26 was checked
          exhaustively (with and without fma contraction) with revision 1820535,
-         with the error bound e = x3*0x1.ap-52 decreased to e = x3*0x1.4dp-52.
+         with the error bound e = x3*0x1.4dp-52.
          It fails with 0x1.4cp-52 and x=0x1.27a0e7f47f0fap-4 (rndz, no fma
-         contraction). */
+         contraction).
+         The interval [0x1p-3, 0x1.00cp-3] was
+         checked exhaustively with rndz and without fma contraction,
+         with error bound e = x3*0x1.80p-52: no failure.
+         The interval [0x1.015891c9eaef8p-3, 0x1.019891c9eaef8p-3] was
+         checked exhaustively with rndz and without fma contraction,
+         with error bound e = x3*0x1.80p-52: no failure. */
       double e = x3*0x1.ap-52, lb = rh + (rl - e), ub = rh + (rl + e);
       if(lb == ub) return lb;
       return as_tanh_zero(x);
@@ -318,14 +328,18 @@ double cr_tanh(double x){
     double rqh = 1/qh, rql = (ql*rqh + __builtin_fma(rqh,qh,-1))*-rqh;
     ph = muldd_acc(ph,pl, rqh,rql, &pl);
 
-    double e = rh*0x1p-62;
+    /* This branch was tested exhaustively with/without fma contraction.
+       During this search, a failure was found with the original error
+       bound (e = rh*0x1p-62) and x=0x1.a0112a16e9318p+1 (rndu, no fma
+       contraction). */
+    double e = rh*0x1.0bp-62;
     rh = fasttwosub(0.5, ph, &rl); rl -= pl;
     rh *= __builtin_copysign(2, x);
     rl *= __builtin_copysign(2, x);
     double lb = rh + (rl - e), ub = rh + (rl + e);
     if(lb == ub) return lb;
   } // endif |x| ~< 3.683
-  else {
+  else { // 3.683 ~< x < 0x1.30fc1931f09cap+4
     static const double l2 = -0x1.62e42fefa39efp-14;
     double dx = __builtin_fma(l2, t, -ax), dx2 = dx*dx;
     double p = dx*((ch[0] + dx*ch[1]) + dx2*(ch[2] + dx*ch[3]));
