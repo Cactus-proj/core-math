@@ -195,11 +195,12 @@ double cr_sinh(double x){
     The function sinh(x) is approximated by a minimax polynomial for
     |x|<0.25. For other arguments the identity
     sinh(x)=(exp(|x|)-exp(-|x|))/2*copysign(1,x) is used. For |x|<5
-    both exponents are calculated with slightly higher precision than
-    double. For 5<|x|<36.736801 the exp(-|x|) is small and is
+    both exp(|x|) and exp(-|x|) are calculated with slightly higher precision
+    than double. For 5<|x|<36.736801 the exp(-|x|) term is small and is
     calculated with double precision but exp(|x|) is calculated with
     higher than double precision. For 36.736801<|x|<710.47586
-    exp(-|x|) becomes too small and only exp(|x|) is calculated.
+    exp(-|x|) becomes too small and only exp(|x|) is calculated,
+    yielding an accuracy of 106 bits.
    */
   static const double t0[][2] = {
     {0x0p+0, 0x1p+0}, {-0x1.19083535b085ep-56, 0x1.02c9a3e778061p+0},
