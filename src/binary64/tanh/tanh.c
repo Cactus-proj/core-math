@@ -107,18 +107,20 @@ static double __attribute__((noinline)) as_exp_accurate(double x, double t, doub
 
 static double __attribute__((noinline)) as_tanh_zero(double x){ // |x|<0.25
   static const double ch[][2] = {
-    {-0x1.5555555555555p-2, -0x1.5555555555555p-56}, {0x1.1111111111111p-3, 0x1.1111111110916p-59},
-    {-0x1.ba1ba1ba1ba1cp-5, 0x1.7917917a46f2cp-59}, {0x1.664f4882c10fap-6, -0x1.9a52a06f1e599p-63},
-    {-0x1.226e355e6c23dp-7, 0x1.c297394c24e38p-61}, {0x1.d6d3d0e157dep-9, -0x1.311087e5b1526p-63},
-    {-0x1.7da36452b75e1p-10, -0x1.2868cde54ea0cp-65}, {0x1.355824803667bp-11, 0x1.2cd8fc406c3f7p-66},
-    {-0x1.f57d7734c821dp-13, 0x1.da22861b4ca8p-70}, {0x1.967e18ad3facfp-14, -0x1.0831108273a74p-68}
+    { -0x1.5555555555555p-2 , -0x1.5555555555542p-56 },
+    { 0x1.1111111111111p-3 , 0x1.11111110d37c4p-59 },
+    { -0x1.ba1ba1ba1ba1cp-5 , 0x1.7917920235524p-59 },
+    { 0x1.664f4882c10fap-6 , -0x1.9a5c330a32bp-63 },
+    { -0x1.226e355e6c23dp-7 , 0x1.c43256eacb2fp-61 },
   };
-  static const double cl[] = {
-    -0x1.497d8e6462927p-15, 0x1.0b1318c243bd7p-16, -0x1.b0f2935e9a12p-18, 0x1.5e9444536e654p-19,
-    -0x1.174ff2a31908cp-20, 0x1.749698c8d338dp-22};
+  static const double cl[] = {0x1.d6d3d0e157ddfp-9,  -0x1.7da36452b7575p-10,
+                              0x1.3558248033825p-11, -0x1.f57d7732fa6d2p-13,
+                              0x1.967e1843c79acp-14, -0x1.497d7cbad6be4p-15,
+                              0x1.0b10f44e1a6b6p-16, -0x1.b094d1a3c8c2dp-18,
+                              0x1.5939cdebc36d7p-19, -0x1.d0cf43476f1fcp-21};
   double x2 = x*x , x2l = __builtin_fma(x, x,-x2);
-  double y2 = x2 * (cl[0] + x2 * (cl[1] + x2 * (cl[2] + x2 * (cl[3] + x2 * (cl[4] + x2 * (cl[5]))))));
-  double y1 = polydd(x2, x2l, 10, ch, &y2);
+  double y2 = x2 * (cl[0] + x2 * (cl[1] + x2 * (cl[2] + x2 * (cl[3] + x2 * (cl[4] + x2 * (cl[5] + x2 * (cl[6] + x2 * (cl[7] + x2 * (cl[8] + x2 * (cl[9]))))))))));
+  double y1 = polydd(x2, x2l, 5, ch, &y2);
   y1 = mulddd(y1, y2, x, &y2);
   y1 = muldd_acc(y1, y2, x2, x2l, &y2);
   double y0 = fasttwosum(x, y1, &y1);
@@ -131,7 +133,7 @@ static double __attribute__((noinline)) as_tanh_zero(double x){ // |x|<0.25
     else
       t.u++;
     y1 = t.f;
-    if(__builtin_expect(y2==0.0, 0)) return  as_tanh_database(x, y0 + y1);
+    if(__builtin_expect(y2==0.0, 0)) return as_tanh_database(x, y0 + y1);
   }
   return y0 + y1;
 }
