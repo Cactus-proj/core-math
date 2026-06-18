@@ -106,39 +106,39 @@ static double __attribute__((noinline)) as_exp_accurate(double x, double t, doub
 }
 
 static double __attribute__((noinline)) as_tanh_zero(double x){ // |x|<0.25
-  static const double ch[][2] = {
-      {-0x1.5555555555555p-2, -0x1.5555555555546p-56},
-      {0x1.1111111111111p-3, 0x1.11111110df44p-59},
-      {-0x1.ba1ba1ba1ba1cp-5, 0x1.791791ea5a6bap-59},
-      {0x1.664f4882c10fap-6, -0x1.9a5ab0095d47p-63},
-      {-0x1.226e355e6c23dp-7, 0x1.c3f87b12df50ap-61},
-      {0x1.d6d3d0e157ddfp-9, 0x1.653211a79df8p-65},
-      {-0x1.7da36452b7581p-10, 0x1.15203cbea034dp-64},
-      {0x1.3558248033c7ap-11, 0x1.859f6aa968157p-65},
-      {-0x1.f57d77331f152p-13, 0x1.aff0bb6ce968ep-68},
+    static const double ch[][2] = {
+        {-0x1.5555555555555p-2, -0x1.5555555554cc4p-56},
+        {0x1.1111111111111p-3, 0x1.111110f8c0178p-59},
+        {-0x1.ba1ba1ba1ba1cp-5, 0x1.7917c1d676ff5p-59},
+        {0x1.664f4882c10fap-6, -0x1.9d5cb27c0af28p-63},
+        {-0x1.226e355e6c23cp-7, -0x1.c9674586913f3p-61},
+        {0x1.d6d3d0e157db3p-9, -0x1.71376fa06ce94p-65},
+        {-0x1.7da36452b5e46p-10, -0x1.aba8d51bd9cp-65},
+        {0x1.3558247faa32dp-11, -0x1.e0cfb423aedfdp-65},
+        {-0x1.f57d76ea30928p-13, -0x1.c30601213cae9p-67},
 
-  };
-  static const double cl[] = {
-      0x1.967e184abec6dp-14, -0x1.497d7dac72bfep-15, 0x1.0b110b1473f1bp-16,
-      -0x1.b097a82b3585p-18, 0x1.5954b2fb1fecbp-19,  -0x1.d1b4919f6eb07p-21,
-  };
-  double x2 = x*x , x2l = __builtin_fma(x, x,-x2);
-  double y2 = x2 * (cl[0] + x2 * (cl[1] + x2 * (cl[2] + x2 * (cl[3] + x2 * (cl[4] + x2 * (cl[5]))))));
-  double y1 = polydd(x2, x2l, 9, ch, &y2);
-  y1 = mulddd(y1, y2, x, &y2);
-  y1 = muldd_acc(y1, y2, x2, x2l, &y2);
-  double y0 = fasttwosum(x, y1, &y1);
-  y1 = fasttwosum(y1, y2, &y2);
-  b64u64_u t = {.f = y1};
-  if(__builtin_expect(!(t.u&(~0ul>>12)), 0)){
-    b64u64_u w = {.f = y2};
-    if((w.u^t.u)>>63)
-      t.u--;
-    else
-      t.u++;
-    y1 = t.f;
-    if(__builtin_expect(y2==0.0, 0)) return as_tanh_database(x, y0 + y1);
-  }
+    };
+    static const double cl[] = {
+        0x1.967e0a63ca836p-14,  -0x1.497b99d2a77d1p-15, 0x1.0ae346258cbdep-16,
+        -0x1.aade68fb2f076p-18, 0x1.22e609bf8671fp-19,
+    };
+    double x2 = x * x, x2l = __builtin_fma(x, x, -x2);
+    double y2 = x2 * (cl[0] + x2 * (cl[1] + x2 * (cl[2] + x2 * (cl[3] + x2 * (cl[4])))));
+    double y1 = polydd(x2, x2l, 9, ch, &y2);
+    y1 = mulddd(y1, y2, x, &y2);
+    y1 = muldd_acc(y1, y2, x2, x2l, &y2);
+    double y0 = fasttwosum(x, y1, &y1);
+    y1 = fasttwosum(y1, y2, &y2);
+    b64u64_u t = {.f = y1};
+    if (__builtin_expect(!(t.u & (~0ul >> 12)), 0)) {
+        b64u64_u w = {.f = y2};
+        if ((w.u ^ t.u) >> 63)
+            t.u--;
+        else
+            t.u++;
+        y1 = t.f;
+        if (__builtin_expect(y2 == 0.0, 0)) return as_tanh_database(x, y0 + y1);
+    }
   return y0 + y1;
 }
 
