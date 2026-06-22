@@ -175,6 +175,27 @@ def out_str(s,out):
    else:
       out.write(s + '\n')
 
+# assume sin is monotonic on [x0,x1)
+def doit_bacsel_aux(cmd,t0,t1,e,out):
+   x0 = RR(t0/2^53*2^e)
+   x1 = RR((t1-1)/2^53*2^e)
+   # check that sin(x0) and sin(x1) have same sign
+   if sin(x0)*sin(x1)>0:
+      out_str (cmd + " " + str(t0) + " " + str(t1) + " 53 " + str(e) + " 64 20", out)
+   else:
+      a = t0
+      b = t1
+      while a+1<b:
+         c = (a+b)//2
+         x = RR(c/2^53*2^e)
+         if sin(x0)*sin(x)>0:
+            a = c
+         else:
+            b = c
+         # same sign on [t0,b)
+      out_str (cmd + " " + str(t0) + " " + str(b) + " 53 " + str(e) + " 64 20", out)
+      out_str (cmd + " " + str(b) + " " + str(t1) + " 53 " + str(e) + " 64 20", out)
+
 # for 2^(e-1) <= x < 2^e
 # sin(x) is monotonous between (k-1/2)*pi and (k+1/2)*pi
 # also avoid roots at k*pi
@@ -185,12 +206,12 @@ def doit_bacsel(e,i0=0,i1=infinity,margin=2*10^7,out=None):
    k0 = ceil(x0/(pi/2))
    x1 = 2^e
    k1 = floor(x1/(pi/2))
-   t1 = RR(n(k0*pi/2,200))
+   t1 = RR(n(k0*pi/2,200)) # first multiple of pi/2 after x0
    t1 = ZZ(t1.exact_rational()*2^(53-e))-margin
    i = 0
    if 2^52<t1:
       if i0 <= i < i1:
-         out_str ("./doit.sh 4503599627370496 " + str(t1) + " 53 " + str(e) + " 64 20", out)
+         doit_bacsel_aux("./doit.sh",4503599627370496,t1,e,out)
       i += 1
    else:
       t1 = 2^52
@@ -198,7 +219,7 @@ def doit_bacsel(e,i0=0,i1=infinity,margin=2*10^7,out=None):
       t0 = t1
       t1 = min(t0 + 2*margin,2^53)
       if i0 <= i < i1:
-         out_str ("./doit0.sh " + str(t0) + " " + str(t1) + " 53 " + str(e) + " 64 20", out)
+         doit_bacsel_aux("./doit0.sh",t0,t1,e,out)
       i += 1
       if k==k1+1:
          break
@@ -207,14 +228,14 @@ def doit_bacsel(e,i0=0,i1=infinity,margin=2*10^7,out=None):
       t1 = ZZ(t1.exact_rational()*2^(53-e))-margin
       if t0<t1:
          if i0 <= i < i1:
-            out_str ("./doit.sh " + str(t0) + " " + str(t1) + " 53 " + str(e) + " 64 20", out)
+            doit_bacsel_aux("./doit.sh",t0,t1,e,out)
          i += 1
       else:
          t1 = t0
    t0 = t1
    if t0<2^53:
       if i0 <= i < i1:
-         out_str ("./doit.sh " + str(t0) + " 9007199254740992 53 " + str(e) + " 64 20", out)
+         doit_bacsel_aux("./doit.sh",t0,9007199254740992,e,out)
       i += 1
    if out != None:
       out.close()
