@@ -69,7 +69,9 @@ fast_two_sum (double *hi, double *lo, double a, double b)
    1/x[i], where i*2^-9 <= x[i] < (i+1)*2^-9.
    More precisely r[i] is a 10-bit value such that r[i]*y-1 is representable
    exactly on 53 bits for any y, i*2^-9 <= y < (i+1)*2^-9.
-   Moreover |r[i]*y-1| <= 0.00212097167968735. */
+   Moreover |r[i]*y-1| <= 0.00212097167968735.
+   The entries for i=511 and i=512 (around x=1) were forced to r=1, which still
+   satisfies |r[i]*y-1| <= 0.00212097167968735 in these intervals. */
 static const double _INVERSE[363]= {
     0x1.698p+0, 0x1.688p+0, 0x1.678p+0, 0x1.668p+0, 0x1.658p+0, 0x1.648p+0, 0x1.638p+0,
     0x1.63p+0, 0x1.62p+0, 0x1.61p+0, 0x1.6p+0, 0x1.5fp+0, 0x1.5ep+0, 0x1.5dp+0,
@@ -92,7 +94,7 @@ static const double _INVERSE[363]= {
     0x1.0c8p+0, 0x1.0cp+0, 0x1.0bp+0, 0x1.0a8p+0, 0x1.0ap+0, 0x1.098p+0, 0x1.09p+0,
     0x1.088p+0, 0x1.08p+0, 0x1.078p+0, 0x1.07p+0, 0x1.068p+0, 0x1.06p+0, 0x1.058p+0,
     0x1.05p+0, 0x1.048p+0, 0x1.04p+0, 0x1.038p+0, 0x1.03p+0, 0x1.028p+0, 0x1.02p+0,
-    0x1.018p+0, 0x1.01p+0, 0x1.008p+0, 0x1.ff8p-1, 0x1.fe8p-1, 0x1.fd8p-1, 0x1.fc8p-1,
+    0x1.018p+0, 0x1.01p+0, 0x1p+0, 0x1p+0, 0x1.fe8p-1, 0x1.fd8p-1, 0x1.fc8p-1,
     0x1.fb8p-1, 0x1.fa8p-1, 0x1.f98p-1, 0x1.f88p-1, 0x1.f78p-1, 0x1.f68p-1, 0x1.f58p-1,
     0x1.f5p-1, 0x1.f4p-1, 0x1.f3p-1, 0x1.f2p-1, 0x1.f1p-1, 0x1.fp-1, 0x1.efp-1,
     0x1.eep-1, 0x1.edp-1, 0x1.ec8p-1, 0x1.eb8p-1, 0x1.ea8p-1, 0x1.e98p-1, 0x1.e88p-1,
@@ -279,8 +281,8 @@ static const double _LOG_INV[363][2] = {
     {-0x1.fe02a6b1p-8, -0x1.9e23f0dda40e4p-46},
     {-0x1.7ee11ebd8p-8, -0x1.749d3c2d23a07p-47},
     {-0x1.ff00aa2bp-9, -0x1.0bc04a086b56ap-45},
-    {-0x1.ff802a9bp-10, 0x1.3bc661d61c5ebp-44},
-    {0x1.00200556p-10, 0x1.56224cd5f35f8p-44},
+    {0,0}, // i=511
+    {0,0}, // i=512
     {0x1.809048288p-9, 0x1.85c0696a70c0cp-45},
     {0x1.40c8a7478p-8, 0x1.e3871df070002p-46},
     {0x1.c189cbb1p-8, -0x1.d80551258856p-44},
