@@ -76,12 +76,16 @@ static inline double mulddd(double xh, double xl, double ch, double *l){
 
 static inline double polydd(double xh, double xl, int n, const double c[][2], double *l){
   int i = n-1;
-  double ch = c[i][0] + *l, cl = ((c[i][0] - ch) + *l) + c[i][1];
+  double ch, cl, t;
+  ch = fasttwosum(c[i][0], *l, &t);
+  cl = t + c[i][1];
+  // ch + cl ~= c[i][0] + c[i][1] + *l 
   while(--i>=0){
     ch = muldd_acc(xh, xl, ch, cl, &cl);
-    double th = ch + c[i][0], tl = (c[i][0] - th) + ch;
+    double th,tl;
+    th = fasttwosum(c[i][0], ch, &tl);
     ch = th;
-    cl += tl + c[i][1];
+    cl = (cl + c[i][1]) + tl;
   }
   *l = cl;
   return ch;
@@ -106,39 +110,38 @@ static double __attribute__((noinline)) as_exp_accurate(double x, double t, doub
 }
 
 static double __attribute__((noinline)) as_tanh_zero(double x){ // |x|<0.25
-    static const double ch[][2] = {
-        {-0x1.5555555555555p-2, -0x1.5555555554cc4p-56},
-        {0x1.1111111111111p-3, 0x1.111110f8c0178p-59},
-        {-0x1.ba1ba1ba1ba1cp-5, 0x1.7917c1d676ff5p-59},
-        {0x1.664f4882c10fap-6, -0x1.9d5cb27c0af28p-63},
-        {-0x1.226e355e6c23cp-7, -0x1.c9674586913f3p-61},
-        {0x1.d6d3d0e157db3p-9, -0x1.71376fa06ce94p-65},
-        {-0x1.7da36452b5e46p-10, -0x1.aba8d51bd9cp-65},
-        {0x1.3558247faa32dp-11, -0x1.e0cfb423aedfdp-65},
-        {-0x1.f57d76ea30928p-13, -0x1.c30601213cae9p-67},
-
-    };
-    static const double cl[] = {
-        0x1.967e0a63ca836p-14,  -0x1.497b99d2a77d1p-15, 0x1.0ae346258cbdep-16,
-        -0x1.aade68fb2f076p-18, 0x1.22e609bf8671fp-19,
-    };
-    double x2 = x * x, x2l = __builtin_fma(x, x, -x2);
-    double y2 = x2 * (cl[0] + x2 * (cl[1] + x2 * (cl[2] + x2 * (cl[3] + x2 * (cl[4])))));
-    double y1 = polydd(x2, x2l, 9, ch, &y2);
-    y1 = mulddd(y1, y2, x, &y2);
-    y1 = muldd_acc(y1, y2, x2, x2l, &y2);
-    double y0 = fasttwosum(x, y1, &y1);
-    y1 = fasttwosum(y1, y2, &y2);
-    b64u64_u t = {.f = y1};
-    if (__builtin_expect(!(t.u & (~0ul >> 12)), 0)) {
-        b64u64_u w = {.f = y2};
-        if ((w.u ^ t.u) >> 63)
-            t.u--;
-        else
-            t.u++;
-        y1 = t.f;
-        if (__builtin_expect(y2 == 0.0, 0)) return as_tanh_database(x, y0 + y1);
-    }
+  static const double ch[][2] = {
+      {-0x1.5555555555555p-2, -0x1.5555555554cc4p-56},
+      {0x1.1111111111111p-3, 0x1.111110f8c0178p-59},
+      {-0x1.ba1ba1ba1ba1cp-5, 0x1.7917c1d676ff5p-59},
+      {0x1.664f4882c10fap-6, -0x1.9d5cb27c0af28p-63},
+      {-0x1.226e355e6c23cp-7, -0x1.c9674586913f3p-61},
+      {0x1.d6d3d0e157db3p-9, -0x1.71376fa06ce94p-65},
+      {-0x1.7da36452b5e46p-10, -0x1.aba8d51bd9cp-65},
+      {0x1.3558247faa32dp-11, -0x1.e0cfb423aedfdp-65},
+      {-0x1.f57d76ea30928p-13, -0x1.c30601213cae9p-67},
+  };
+  static const double cl[] = {
+      0x1.967e0a63ca836p-14,  -0x1.497b99d2a77d1p-15, 0x1.0ae346258cbdep-16,
+      -0x1.aade68fb2f076p-18, 0x1.22e609bf8671fp-19,
+  };
+  double x2 = x * x, x2l = __builtin_fma(x, x, -x2);
+  double y2 = x2 * (cl[0] + x2 * (cl[1] + x2 * (cl[2] + x2 * (cl[3] + x2 * (cl[4])))));
+  double y1 = polydd(x2, x2l, 9, ch, &y2);
+  y1 = mulddd(y1, y2, x, &y2);
+  y1 = muldd_acc(y1, y2, x2, x2l, &y2);
+  double y0 = fasttwosum(x, y1, &y1);
+  y1 = fasttwosum(y1, y2, &y2);
+  b64u64_u t = {.f = y1};
+  if (__builtin_expect(!(t.u & (~0ul >> 12)), 0)) {
+      b64u64_u w = {.f = y2};
+      if ((w.u ^ t.u) >> 63)
+          t.u--;
+      else
+          t.u++;
+      y1 = t.f;
+      if (__builtin_expect(y2 == 0.0, 0)) return as_tanh_database(x, y0 + y1);
+  }
   return y0 + y1;
 }
 
