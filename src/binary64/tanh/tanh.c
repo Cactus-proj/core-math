@@ -137,7 +137,8 @@ static double __attribute__((noinline)) as_tanh_zero(double x){ // |x|<0.25
         else
             t.u++;
         y1 = t.f;
-        if (__builtin_expect(y2 == 0.0, 0)) return as_tanh_database(x, y0 + y1);
+        if (__builtin_fabs (x) == 0x1.ac343b179fec4p-3)
+          return as_tanh_database(x, y0 + y1);
     }
   return y0 + y1;
 }
