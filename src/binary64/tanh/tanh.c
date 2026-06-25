@@ -74,13 +74,16 @@ static inline double mulddd(double xh, double xl, double ch, double *l){
   return ch;
 }
 
+/* at input, l is the approximation of the upper part of the polynomial
+   (evaluated with double arithmetic only) */
 static inline double polydd(double xh, double xl, int n, const double c[][2], double *l){
   int i = n-1;
-  double ch = c[i][0] + *l, cl = ((c[i][0] - ch) + *l) + c[i][1];
+  double ch, cl, tl;
+  ch = fasttwosum(c[i][0], *l, &cl);
+  cl += c[i][1];
   while(--i>=0){
     ch = muldd_acc(xh, xl, ch, cl, &cl);
-    double th = ch + c[i][0], tl = (c[i][0] - th) + ch;
-    ch = th;
+    ch = fasttwosum(c[i][0], ch, &tl);
     cl += tl + c[i][1];
   }
   *l = cl;
