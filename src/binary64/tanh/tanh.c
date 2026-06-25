@@ -123,7 +123,7 @@ static double __attribute__((noinline)) as_tanh_zero(double x){ // |x|<0.25
         -0x1.aade68fb2f076p-18, 0x1.22e609bf8671fp-19,
     };
     double x2 = x * x, x2l = __builtin_fma(x, x, -x2);
-    double y2 = x2 * (cl[0] + x2 * (cl[1] + x2 * (cl[2] + x2 * (cl[3] + x2 * (cl[4])))));
+    double y2 = x2 * (cl[0] + x2 * (cl[1] + x2 * (cl[2] + x2 * (cl[3] + x2 * cl[4]))));
     double y1 = polydd(x2, x2l, 9, ch, &y2);
     y1 = mulddd(y1, y2, x, &y2);
     y1 = muldd_acc(y1, y2, x2, x2l, &y2);
