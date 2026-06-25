@@ -69,9 +69,7 @@ static inline double muldd_acc(double xh, double xl, double ch, double cl, doubl
 static inline double mulddd(double xh, double xl, double ch, double *l){
   double ahlh = ch*xl, ahhh = ch*xh, ahhl = __builtin_fma(ch, xh, -ahhh);
   ahhl += ahlh;
-  ch = ahhh + ahhl;
-  *l = (ahhh - ch) + ahhl;
-  return ch;
+  return fasttwosum(ahhh, ahhl, l);
 }
 
 /* at input, l is the approximation of the upper part of the polynomial
