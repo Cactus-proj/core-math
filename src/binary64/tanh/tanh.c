@@ -61,15 +61,15 @@ static inline double fasttwosub(double x, double y, double *e){
 }
 
 static inline double muldd_acc(double xh, double xl, double ch, double cl, double *l){
-  double ahlh = ch*xl, alhh = cl*xh, ahhh = ch*xh, ahhl = __builtin_fma(ch, xh, -ahhh);
-  ahhl += alhh + ahlh;
-  return fasttwosum (ahhh, ahhl, l);
+  double plh = xl*ch, phl = xh*cl, phh = xh*ch, phh_rest = __builtin_fma(xh, ch, -phh);
+  phh_rest += (phl + plh);  
+  return fasttwosum(phh, phh_rest, l);
 }
 
-static inline double mulddd(double xh, double xl, double ch, double *l){
-  double ahlh = ch*xl, ahhh = ch*xh, ahhl = __builtin_fma(ch, xh, -ahhh);
-  ahhl += ahlh;
-  return fasttwosum(ahhh, ahhl, l);
+static inline double mulddd_acc(double xh, double xl, double c, double *l){
+  double pl = xl*c, ph = xh*c, ph_rest = __builtin_fma(xh, c, -ph);
+  ph_rest += pl;
+  return fasttwosum(ph, ph_rest, l);
 }
 
 /* at input, l is the approximation of the upper part of the polynomial
@@ -120,7 +120,6 @@ static double __attribute__((noinline)) as_tanh_zero(double x){ // |x|<0.25
         {-0x1.7da36452b5e46p-10, -0x1.aba8d51bd9cp-65},
         {0x1.3558247faa32dp-11, -0x1.e0cfb423aedfdp-65},
         {-0x1.f57d76ea30928p-13, -0x1.c30601213cae9p-67},
-
     };
     static const double cl[] = {
         0x1.967e0a63ca836p-14,  -0x1.497b99d2a77d1p-15, 0x1.0ae346258cbdep-16,
@@ -129,7 +128,7 @@ static double __attribute__((noinline)) as_tanh_zero(double x){ // |x|<0.25
     double x2 = x * x, x2l = __builtin_fma(x, x, -x2);
     double y2 = x2 * (cl[0] + x2 * (cl[1] + x2 * (cl[2] + x2 * (cl[3] + x2 * cl[4]))));
     double y1 = polydd(x2, x2l, 9, ch, &y2);
-    y1 = mulddd(y1, y2, x, &y2);
+    y1 = mulddd_acc(y1, y2, x, &y2);
     y1 = muldd_acc(y1, y2, x2, x2l, &y2);
     double y0 = fasttwosum(x, y1, &y1);
     y1 = fasttwosum(y1, y2, &y2);
