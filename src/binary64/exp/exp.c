@@ -97,19 +97,29 @@ static inline double muldd(double xh, double xl, double ch, double cl, double *l
   return ahhh;
 }
 
-/* FIXME: when FMA is available in hardware, use Algorithm FASTFMA_DW
-   from https://inria.hal.science/hal-05517451 which claims a 12%
-   improvement on the accurate path.
-*/
+/* This routine implements Algorithm 4 from
+   "Extended-Precision FMA under Parameterized Double-Word Overlap:
+   Tight Error Bounds and Examples by Claude-Pierre Jeannerod, Mioara Joldes,
+   Nicolas Louvet, Jean-Michel Muller, published in the proceedings of
+   Arith 2026, https://inria.hal.science/hal-05517451. */
+static inline double
+FastFMA_DW (double ah, double al, double bh, double bl, double ch, double cl,
+            double *l)
+{
+  double dh = __builtin_fma (ah, bh, ch);
+  double t = ch - dh;
+  double e = __builtin_fma (ah, bh, t);
+  double f = e + cl;
+  double g = __builtin_fma (ah, bl, f);
+  *l = __builtin_fma (al, bh, g); // this is dl in the paper
+  return dh;
+}
+
 static inline double opolydd(double xh, double xl, int n, const double c[][2], double *l){
   int i = n-1;
   double ch = c[i][0], cl = c[i][1];
-  while(--i>=0){
-    ch = muldd(xh,xl, ch,cl, &cl);
-    double th = ch + c[i][0], tl = (c[i][0] - th) + ch;
-    ch = th;
-    cl += tl + c[i][1];
-  }
+  while(--i>=0)
+    ch = FastFMA_DW (xh, xl, ch, cl, c[i][0], c[i][1], &cl);
   *l = cl;
   return ch;
 }
