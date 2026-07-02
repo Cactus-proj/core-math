@@ -101,7 +101,9 @@ check (double x)
   {
     printf ("FAIL x=%la ref=%la z=%la\n", x, y1, y2);
     fflush (stdout);
+#ifndef DO_NOT_ABORT
     exit (1);
+#endif
   }
 }
 
@@ -176,9 +178,9 @@ static void scan_consecutive(int64_t n, double x){
 int
 main (int argc, char *argv[])
 {
-  int conseq = 0;  // scan consecutive values
-  double a;        // starting value for scan_consecutive
-  unsigned long C; // length for scan_consecutive
+  int conseq = 0;      // scan consecutive values
+  double a = 0;        // starting value for scan_consecutive
+  unsigned long C = 0; // length for scan_consecutive
   while (argc >= 2)
     {
       if (strcmp (argv[1], "--rndn") == 0)

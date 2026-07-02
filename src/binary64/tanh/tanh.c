@@ -1,6 +1,10 @@
 /* Correctly rounded hyperbolic tangent function for binary64 values.
 
-Copyright (c) 2023 Alexei Sibidanov.
+Copyright (c) 2023-2026 Alexei Sibidanov, Cyprien Peignier, Paul Zimmermann
+
+Alexei Sibidanov designed the original algorithm, while Cyprien Peignier and
+Paul Zimmermann extended the fma formula for |x0| <= 0x1.d12ed0af1a27fp-27,
+and improved the minimax polynomial for x0 <= |x| < 0.25.
 
 This file is part of the CORE-MATH project
 (https://core-math.gitlabpages.inria.fr/).
@@ -57,27 +61,31 @@ static inline double fasttwosub(double x, double y, double *e){
 }
 
 static inline double muldd_acc(double xh, double xl, double ch, double cl, double *l){
-  double ahlh = ch*xl, alhh = cl*xh, ahhh = ch*xh, ahhl = __builtin_fma(ch, xh, -ahhh);
-  ahhl += alhh + ahlh;
-  return fasttwosum (ahhh, ahhl, l);
+  double plh = xl*ch, phl = xh*cl, phh = xh*ch, phh_rest = __builtin_fma(xh, ch, -phh);
+  phh_rest += (phl + plh);  
+  return fasttwosum(phh, phh_rest, l);
 }
 
-static inline double mulddd(double xh, double xl, double ch, double *l){
-  double ahlh = ch*xl, ahhh = ch*xh, ahhl = __builtin_fma(ch, xh, -ahhh);
-  ahhl += ahlh;
-  ch = ahhh + ahhl;
-  *l = (ahhh - ch) + ahhl;
-  return ch;
+static inline double mulddd_acc(double xh, double xl, double c, double *l){
+  double pl = xl*c, ph = xh*c, ph_rest = __builtin_fma(xh, c, -ph);
+  ph_rest += pl;
+  return fasttwosum(ph, ph_rest, l);
 }
 
+/* at input, l is the approximation of the upper part of the polynomial
+   (evaluated with double arithmetic only) */
 static inline double polydd(double xh, double xl, int n, const double c[][2], double *l){
   int i = n-1;
-  double ch = c[i][0] + *l, cl = ((c[i][0] - ch) + *l) + c[i][1];
+  double ch, cl, t;
+  ch = fasttwosum(c[i][0], *l, &t);
+  cl = t + c[i][1];
+  // ch + cl ~= c[i][0] + c[i][1] + *l 
   while(--i>=0){
     ch = muldd_acc(xh, xl, ch, cl, &cl);
-    double th = ch + c[i][0], tl = (c[i][0] - th) + ch;
+    double th,tl;
+    th = fasttwosum(c[i][0], ch, &tl);
     ch = th;
-    cl += tl + c[i][1];
+    cl = (cl + c[i][1]) + tl;
   }
   *l = cl;
   return ch;
@@ -102,33 +110,39 @@ static double __attribute__((noinline)) as_exp_accurate(double x, double t, doub
 }
 
 static double __attribute__((noinline)) as_tanh_zero(double x){ // |x|<0.25
-  static const double ch[][2] = {
-    {-0x1.5555555555555p-2, -0x1.5555555555555p-56}, {0x1.1111111111111p-3, 0x1.1111111110916p-59},
-    {-0x1.ba1ba1ba1ba1cp-5, 0x1.7917917a46f2cp-59}, {0x1.664f4882c10fap-6, -0x1.9a52a06f1e599p-63},
-    {-0x1.226e355e6c23dp-7, 0x1.c297394c24e38p-61}, {0x1.d6d3d0e157dep-9, -0x1.311087e5b1526p-63},
-    {-0x1.7da36452b75e1p-10, -0x1.2868cde54ea0cp-65}, {0x1.355824803667bp-11, 0x1.2cd8fc406c3f7p-66},
-    {-0x1.f57d7734c821dp-13, 0x1.da22861b4ca8p-70}, {0x1.967e18ad3facfp-14, -0x1.0831108273a74p-68}
-  };
-  static const double cl[] = {
-    -0x1.497d8e6462927p-15, 0x1.0b1318c243bd7p-16, -0x1.b0f2935e9a12p-18, 0x1.5e9444536e654p-19,
-    -0x1.174ff2a31908cp-20, 0x1.749698c8d338dp-22};
-  double x2 = x*x , x2l = __builtin_fma(x, x,-x2);
-  double y2 = x2 * (cl[0] + x2 * (cl[1] + x2 * (cl[2] + x2 * (cl[3] + x2 * (cl[4] + x2 * (cl[5]))))));
-  double y1 = polydd(x2, x2l, 10, ch, &y2);
-  y1 = mulddd(y1, y2, x, &y2);
-  y1 = muldd_acc(y1, y2, x2, x2l, &y2);
-  double y0 = fasttwosum(x, y1, &y1);
-  y1 = fasttwosum(y1, y2, &y2);
-  b64u64_u t = {.f = y1};
-  if(__builtin_expect(!(t.u&(~0ul>>12)), 0)){
-    b64u64_u w = {.f = y2};
-    if((w.u^t.u)>>63)
-      t.u--;
-    else
-      t.u++;
-    y1 = t.f;
-    if(__builtin_expect(y2==0.0, 0)) return  as_tanh_database(x, y0 + y1);
-  }
+    static const double ch[][2] = {
+        {-0x1.5555555555555p-2, -0x1.5555555554cc4p-56},
+        {0x1.1111111111111p-3, 0x1.111110f8c0178p-59},
+        {-0x1.ba1ba1ba1ba1cp-5, 0x1.7917c1d676ff5p-59},
+        {0x1.664f4882c10fap-6, -0x1.9d5cb27c0af28p-63},
+        {-0x1.226e355e6c23cp-7, -0x1.c9674586913f3p-61},
+        {0x1.d6d3d0e157db3p-9, -0x1.71376fa06ce94p-65},
+        {-0x1.7da36452b5e46p-10, -0x1.aba8d51bd9cp-65},
+        {0x1.3558247faa32dp-11, -0x1.e0cfb423aedfdp-65},
+        {-0x1.f57d76ea30928p-13, -0x1.c30601213cae9p-67},
+    };
+    static const double cl[] = {
+        0x1.967e0a63ca836p-14,  -0x1.497b99d2a77d1p-15, 0x1.0ae346258cbdep-16,
+        -0x1.aade68fb2f076p-18, 0x1.22e609bf8671fp-19,
+    };
+    double x2 = x * x, x2l = __builtin_fma(x, x, -x2);
+    double y2 = x2 * (cl[0] + x2 * (cl[1] + x2 * (cl[2] + x2 * (cl[3] + x2 * cl[4]))));
+    double y1 = polydd(x2, x2l, 9, ch, &y2);
+    y1 = mulddd_acc(y1, y2, x, &y2);
+    y1 = muldd_acc(y1, y2, x2, x2l, &y2);
+    double y0 = fasttwosum(x, y1, &y1);
+    y1 = fasttwosum(y1, y2, &y2);
+    b64u64_u t = {.f = y1};
+    if (__builtin_expect(!(t.u & (~0ul >> 12)), 0)) {
+        b64u64_u w = {.f = y2};
+        if ((w.u ^ t.u) >> 63)
+            t.u--;
+        else
+            t.u++;
+        y1 = t.f;
+        if (__builtin_fabs (x) == 0x1.ac343b179fec4p-3)
+          return as_tanh_database(x, y0 + y1);
+    }
   return y0 + y1;
 }
 
@@ -243,7 +257,7 @@ double cr_tanh(double x){
   u64 aix = ix.u;
   /* for |x| >= 0x1.30fc1931f09cap+4, tanh(x) rounds to +1 or -1 to nearest,
      this avoid a spurious overflow in the computation of v0 below */
-  if (__builtin_expect (aix >=0x40330fc1931f09caull, 0)) {
+  if (__builtin_expect (aix >= 0x40330fc1931f09caull, 0)) {
     if(aix>0x7ff0000000000000ull) return x + x; // nan
     double f = __builtin_copysign(1.0, x);
     if(aix==0x7ff0000000000000ull) return f;
@@ -270,8 +284,7 @@ double cr_tanh(double x){
   double t0h = t0[i0][1], t1h = t1[i1][1], th = t0h*t1h, tl;
   if(aix<0x400d76c8b4395810ull){ // |x| ~< 3.683
     if(__builtin_expect(aix<0x3fd0000000000000ull, 0)){ // |x| < 0x1p-2
-      if(__builtin_expect(aix<0x3e10000000000000ull, 0)){ // |x| < 0x1p-30
-	if(__builtin_expect(aix<0x3df0000000000000ull, 0)){ // |x| < 0x1p-32
+      if(__builtin_expect(aix<=0x3e4d12ed0af1a27full, 0)){ // |x| <= 0x1.d12ed0af1a27fp-27
 	  if(__builtin_expect(!aix, 0)) return x;
           /* We have underflow when 0 < |x| < 2^-1022 or when |x| = 2^-1022
              and rounding towards zero. */
@@ -282,23 +295,31 @@ double cr_tanh(double x){
             errno = ERANGE; // underflow
 #endif
           return res;
-	}
-	double x3 = x*x*x;
-	return x - x3/3;
-      }
+      } // endif |x| <= 0x1.d12ed0af1a27fp-27
       static const double c[] = {
-	-0x1.5555555555554p-2, 0x1.1111111110d61p-3, -0x1.ba1ba1b983d8bp-5, 0x1.664f4820e99fp-6,
-	-0x1.226e11e4ac7cfp-7, 0x1.d6c4ab70668b6p-9, -0x1.7bbecb57ce996p-10, 0x1.1451443697dd8p-11};
+	-0x1.5555555555555p-2, 0x1.1111111110f33p-3, -0x1.ba1ba1b9b8ea6p-5, 0x1.664f4838e0a43p-6,
+	-0x1.226e17d1bc09bp-7, 0x1.d6c64dfba2565p-9, -0x1.7bdd094d327afp-10, 0x1.1535ad0c31d0ep-11};
       double x2 = x*x, x3 = x2*x, x4 = x2*x2, x8 = x4*x4;
       double p1 = (c[4] + x2*c[5]) + x4*(c[6] + x2*c[7]);
       double p0 = (c[0] + x2*c[1]) + x4*(c[2] + x2*c[3]);
       p0 += x8*p1;
       p0 *= x3;
       double rl, rh = fasttwosum(x,p0,&rl);
+      /* The branch 0x1.d12ed0af1a27fp-27 <= x < 0x1p-26 was checked
+         exhaustively (with and without fma contraction) with revision 1820535,
+         with the error bound e = x3*0x1.4dp-52.
+         It fails with 0x1.4cp-52 and x=0x1.27a0e7f47f0fap-4 (rndz, no fma
+         contraction).
+         The interval [0x1p-3, 0x1.00cp-3] was
+         checked exhaustively with rndz and without fma contraction,
+         with error bound e = x3*0x1.80p-52: no failure.
+         The interval [0x1.015891c9eaef8p-3, 0x1.019891c9eaef8p-3] was
+         checked exhaustively with rndz and without fma contraction,
+         with error bound e = x3*0x1.80p-52: no failure. */
       double e = x3*0x1.ap-52, lb = rh + (rl - e), ub = rh + (rl + e);
       if(lb == ub) return lb;
       return as_tanh_zero(x);
-    }
+    } // endif |x| < 0x1p-2
 
     double t0l = t0[i0][0], t1l = t1[i1][0];
     tl = t0h*t1l + t1h*t0l + __builtin_fma(t0h, t1h,-th);
@@ -317,18 +338,24 @@ double cr_tanh(double x){
     double rqh = 1/qh, rql = (ql*rqh + __builtin_fma(rqh,qh,-1))*-rqh;
     ph = muldd_acc(ph,pl, rqh,rql, &pl);
 
-    double e = rh*0x1p-62;
+    /* This branch was tested exhaustively with/without fma contraction.
+       During this search, a failure was found with the original error
+       bound (e = rh*0x1p-62) and x=0x1.a0112a16e9318p+1 (rndu, no fma
+       contraction). */
+    double e = rh*0x1.0bp-62;
     rh = fasttwosub(0.5, ph, &rl); rl -= pl;
     rh *= __builtin_copysign(2, x);
     rl *= __builtin_copysign(2, x);
     double lb = rh + (rl - e), ub = rh + (rl + e);
     if(lb == ub) return lb;
-  } else {
+  } // endif |x| ~< 3.683
+  else { // 3.683 ~< x < 0x1.30fc1931f09cap+4
     static const double l2 = -0x1.62e42fefa39efp-14;
     double dx = __builtin_fma(l2, t, -ax), dx2 = dx*dx;
     double p = dx*((ch[0] + dx*ch[1]) + dx2*(ch[2] + dx*ch[3]));
     double rh = th*sp.f;
     rh += (p + ((2*0x1.3p-55)*ax))*rh;
+    // fails with e = rh*0x1.fap-50 and x=0x1.09cc2de69e78cp+2 (rndu, with/without fma contraction)
     double e = rh*0x1.1p-49;
     rh = (2*rh)/(1 + rh);
     double one = __builtin_copysign(1,x);
