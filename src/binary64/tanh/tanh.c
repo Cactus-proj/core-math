@@ -355,7 +355,11 @@ double cr_tanh(double x){
     double p = dx*((ch[0] + dx*ch[1]) + dx2*(ch[2] + dx*ch[3]));
     double rh = th*sp.f;
     rh += (p + ((2*0x1.3p-55)*ax))*rh;
-    // fails with e = rh*0x1.fap-50 and x=0x1.09cc2de69e78cp+2 (rndu, with/without fma contraction)
+    /* This branch was tested exhaustively with/without fma contraction.
+       During this search, the largest 9-bit value of e for which it fails was
+       found to be e = rh*0x1.fap-50 with x=0x1.09cc2de69e78cp+2
+       (rndu, with/without fma contraction). Thus the bound below can be
+       reduced to rh*0x1.fbp-50. */
     double e = rh*0x1.1p-49;
     rh = (2*rh)/(1 + rh);
     double one = __builtin_copysign(1,x);
