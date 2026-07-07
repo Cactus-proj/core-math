@@ -169,7 +169,11 @@ static void scan_consecutive(int64_t n, double x){
         check(v.f);
     }
     n -= jmax;
-    x += jmax * ldexp (1.0, e - 53);
+    // we scan away from zero, thus for x < 0, we have to decrease x
+    if (x > 0)
+      x += jmax * ldexp (1.0, e - 53);
+    else
+      x -= jmax * ldexp (1.0, e - 53);
   }
   printf ("checked %lu values, expensive checks %lu\n",
           (unsigned long) n0, tested);
