@@ -147,6 +147,8 @@ static void scan_consecutive(int64_t n, double x){
     frexp (x, &e);
     /* 2^(e-1) <= |x| < 2^e thus ulp(x) = 2^(e-53) */
     d = ldexp (d, e - 53); // multiply d by ulp(x)
+    // if x < 0, since we scan away from zero, x is decreasing
+    if (x < 0) d = -d;
     dd = ldexp (dd, 2 * (e - 53)); // multiply dd by ulp(x)^2
     /* we want j^2*dd < 2^-11 ulp(h) so that the 2nd-order term
        produces an error bounded by 2^-11 ulp(h), to that MPFR
