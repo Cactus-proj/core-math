@@ -693,3 +693,36 @@ def corner_rndn(K,f):
          K -= 1
          print ("remains ", K)
    f.close()
+
+# 0x1.116cbc01a3fb5p-13 Z rel. err= -64.9031451609819
+# 0x1.116cbc077bf51p-13 U |ql|= -52.0000000320288
+def check_q_1_random():
+   maxerr = 0
+   maxql = 0
+   Q_1 = ["0x1p0","0x1p0","0x1p-1","0x1.5555555997996p-3","0x1.5555555849d8dp-5"]
+   z = -2^-12.905
+   while true:
+      # z = RR.random_element(-2^-12.905,2^-12.905)
+      if z<0:
+         z = (-z).nextbelow()
+      else:
+         z = -z
+      Z = z.exact_rational()
+      for r in 'NZUD':
+         R = RealField(53,rnd='RND'+r)
+         Q = [R(x,16) for x in Q_1]
+         z = R(z)
+         q = fma(Q[4],z,Q[3])
+         q = fma(q,z,Q[2])
+         h0 = fma(q,z,Q[1])
+         qh = fma(z,h0,Q[0])
+         h1 = Q[0]-qh
+         ql = fma(z,h0,h1)
+         Q = qh.exact_rational()+ql.exact_rational()
+         err = abs(n(Q/exp(Z)-1,200))
+         if err>maxerr:
+            maxerr = err
+            print (get_hex(z), r, "rel. err=", log(err)/log(2.))
+         if abs(ql)>maxql:
+            maxql = abs(ql)
+            print (get_hex(z), r, "|ql|=", log(abs(ql))/log(2.))
