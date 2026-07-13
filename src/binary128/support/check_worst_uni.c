@@ -27,16 +27,14 @@ SOFTWARE.
 #ifndef __APPLE__
 #define _POSIX_C_SOURCE 200809L  /* for getline */
 #endif /* !__APPLE */
-
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
 #include <fenv.h>
 #include <getopt.h>
-#ifdef CORE_MATH_SUPPORT_ERRNO
 #include <errno.h>
-#endif
 #include <math.h>
 #include <ctype.h>
 #include <quadmath.h>
@@ -414,7 +412,7 @@ int transform(__float128 x, __float128 *out){
     px.f = x;
     k = -1;
   }
-  if(++k<2){
+  if(++k<1){
     s.b[1] ^= k<<63;
     *out = s.f;
     return 1;
@@ -442,6 +440,27 @@ int fillbuf(char **buf, size_t *nbuf){
   return 1;
 }
 
+static __float128 mystrtoflt128(const char *p, char **pn){
+  __float128 res = strtoflt128(p, pn);
+  if (*pn > p) return res;
+  char *pos = strcasestr(p, "nan");
+  if (pos == NULL) return res;
+  uint64_t nan = 0;
+  if (pos - 1 >= p){
+    if(strncasecmp(pos-1, "q", 1) == 0) nan = 1;
+    if(strncasecmp(pos-1, "s", 1) == 0) nan = 0;
+  }
+  if (pos - 2 >= p){
+    if(strncasecmp(pos-2, "+", 1) == 0) nan |= 0;
+    if(strncasecmp(pos-2, "-", 1) == 0) nan |= 2;
+  }
+  *pn = pos + 3;
+  b128u128_u u;
+  u.b[1] = (nan&2)<<62|0x7fffull<<48|1ul<<((nan&1)+46);
+  u.b[0] = 0;
+  return u.f;
+}
+
 int nextarg(__float128 *x){
   static int first = 1;
   static __float128 arg = __builtin_nanf128("");
@@ -461,8 +480,8 @@ int nextarg(__float128 *x){
     while(*pos){
       char *pos1;
       errno = 0;
-      arg = strtoflt128(pos, &pos1);
-      if (errno == ERANGE) {transform(arg, x); return 1;} // just zero or infinity
+      arg = mystrtoflt128(pos, &pos1);
+      if (errno == ERANGE) {pos = pos1; transform(arg, x); return 1;} // just zero or infinity
       if (pos1 == pos) {pos++; continue;}
       pos = pos1;
       transform(arg, x); return 1;
