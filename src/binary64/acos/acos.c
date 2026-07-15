@@ -24,6 +24,13 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+/* References:
+   [1] Handbook of Mathematical Functions, Milton Abramowitz and Irene A.
+   Stegun, https://personal.math.ubc.ca/~cbm/aands/abramowitz_and_stegun.pdf
+   [2] IA-64 and Elementary Functions, Peter Markstein, Hewlett-Packard
+   Professional Books, 2000.
+*/
+
 #include <stdint.h>
 #ifdef CORE_MATH_SUPPORT_ERRNO
 #include <errno.h>
@@ -217,9 +224,12 @@ double cr_acos (double x){
 #endif
       return 0./0.; // |x|>1
     }
-    // for x>0.5 we use range reduction for double angle formula
-    // acos(x) = 2*asin(sqrt((1-x)/2)) and for x<-0.5, acos(x) = pi -
-    // 2*asin(sqrt((1+x)/2))
+    /* For x>0.5 we use range reduction for double angle formula
+       acos(x) = 2*asin(sqrt((1-x)/2)) and for x<-0.5, acos(x) = pi -
+       2*asin(sqrt((1+x)/2)). These formulas are obtained using
+       acos(x) = pi/2 - asin(x) (formula 4.4.2 from [1]),
+       asin(x) = pi/2 - 2*asin(sqrt((1-x)/2)) (formula (14.2.1) from [2]),
+       and asin(-x) = -asin(x). */
     t = 2 - 2*__builtin_fabs(x);
     jd = roundeven_finite(t*0x1p5);
     z = __builtin_copysign(__builtin_sqrt(t), x);
