@@ -2,7 +2,7 @@ FUNCTION_UNDER_TEST := atanq
 
 include ../support/Makefile.univariate
 
-CFLAGS += -DMPFR_WANT_FLOAT128 -DWORST_SYMMETRIC
+CFLAGS += -DMPFR_WANT_FLOAT128
 LDFLAGS += -lquadmath
 
 all:: check_special
