@@ -34,10 +34,14 @@ double ref_hypot (double x, double y){
   /* since MPFR does not distinguish between quiet/signaling NaN,
      we have to deal with them separately to apply the IEEE rules */
   b64u64_u xi = {.f = x}, yi = {.f = y};
-  if((xi.u<<1)<(0xfffull<<52) && (xi.u<<1)>(0x7ffull<<53)) // x = sNAN
-    return x + y; // will return qNAN
-  if((yi.u<<1)<(0xfffull<<52) && (yi.u<<1)>(0x7ffull<<53)) // y = sNAN
-    return x + y; // will return qNAN
+  if((xi.u<<1)<(0xfffull<<52) && (xi.u<<1)>(0x7ffull<<53)) { // x = sNAN
+    mpfr_set_nanflag (); // to correctly detect spurious/missing invalid
+    return x + y; // will return qNAN and raise invalid
+  }
+  if((yi.u<<1)<(0xfffull<<52) && (yi.u<<1)>(0x7ffull<<53)) { // y = sNAN
+    mpfr_set_nanflag (); // to correctly detect spurious/missing invalid
+    return x + y; // will return qNAN and raise invalid
+  }
   if((xi.u<<1) == 0){ // x = +/-0
     yi.u = (yi.u<<1)>>1;
     return yi.f;

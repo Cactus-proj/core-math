@@ -210,7 +210,8 @@ int underflow_before = 0;
 static void
 fix_underflow (double x, double y, double z)
 {
-  if (__builtin_fabs (z) != 0x1p-1022)
+  // we first test if z is NaN since __builtin_fabs (z) might raise invalid
+  if (is_nan (z) || __builtin_fabs (z) != 0x1p-1022)
     return;
   // now |z| = 2^-1022
   if (underflow_before) {
@@ -380,8 +381,9 @@ check (testcase ts)
   // check spurious/missing invalid exception
   if (fetestexcept (FE_INVALID) && !mpfr_flags_test (MPFR_FLAGS_NAN))
   {
-    printf ("Spurious invalid exception for x,y=%la,%la (z=%la)\n",
-            ts.x, ts.y, z1);
+    printf ("Spurious invalid exception for x,y=");
+    print_binary64 (ts.x); printf (","); print_binary64 (ts.y);
+    printf (" (z="); print_binary64 (z1); printf (")\n");
     fflush (stdout);
 #ifdef DO_NOT_ABORT
     return;
