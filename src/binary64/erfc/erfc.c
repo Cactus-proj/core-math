@@ -1,6 +1,6 @@
 /* Correctly-rounded complementary error function for the binary64 format
 
-Copyright (c) 2022-2025 Alexei Sibidanov, Paul Zimmermann, Tom Hubrecht and
+Copyright (c) 2022-2026 Alexei Sibidanov, Paul Zimmermann, Tom Hubrecht and
 Claude-Pierre Jeannerod.
 
 This file is part of the CORE-MATH project
@@ -41,6 +41,7 @@ SOFTWARE.
        Cambridge University Press, 2011.
 */
 
+#include <fenv.h>
 #ifdef CORE_MATH_SUPPORT_ERRNO
 #include <errno.h>
 #endif
@@ -788,6 +789,7 @@ exp_accurate (double *h, double *l, int *e, double xh, double xl)
 static double
 erfc_asympt_fast (double *h, double *l, double x)
 {
+  int underflow = fetestexcept (FE_UNDERFLOW); // is underflow raised at input
   /* for x >= 0x1.9db1bb14e15cap+4, erfc(x) < 2^-970, and we might encounter
      underflow issues in the computation of l, thus we delegate this case
      to the accurate path */
@@ -901,6 +903,11 @@ erfc_asympt_fast (double *h, double *l, double x)
      (1+2^-71.804)*(1+2^-74.139)*(1+2^-97.9)*(1+2^-67.184)*(1+2^-80)-1
      < 2^-67.115
   */
+
+  // we have underflow iff x >= 0x1.a8b12fc6e4892p+4, whatever the rounding mode
+  if (underflow == 0 && x < 0x1.a8b12fc6e4892p+4 && fetestexcept (FE_UNDERFLOW))
+    feclearexcept (FE_UNDERFLOW); // spurious underflow
+
   // avoid a spurious underflow in 0x1.d9p-68 * h
   if (*h >= 0x1.151b9a3fdd5c9p-955)
     return 0x1.d9p-68 * *h; /* 2^-67.115 < 0x1.d9p-68 */
