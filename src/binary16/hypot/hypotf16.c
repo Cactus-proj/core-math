@@ -1,6 +1,6 @@
 /* Correctly-rounded Euclidean distance function (hypot) for binary16 value.
 
-Copyright (c) 2025 Maxence Ponsardin.
+Copyright (c) 2025-2026 Maxence Ponsardin and Paul Zimmermann.
 
 This file is part of the CORE-MATH project
 (https://core-math.gitlabpages.inria.fr/).

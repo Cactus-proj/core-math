@@ -1,6 +1,6 @@
 /* Check correctness of bivariate binary16 function by exhaustive search.
 
-Copyright (c) 2022-2025 Alexei Sibidanov and Paul Zimmermann
+Copyright (c) 2022-2026 Alexei Sibidanov and Paul Zimmermann
 
 This file is part of the CORE-MATH project
 (https://core-math.gitlabpages.inria.fr/).
@@ -454,7 +454,9 @@ check_exceptions_aux (uint16_t n1, uint16_t n2)
     printf (" ref="); print_float16 (y); printf (" z="); print_float16 (z);
     printf ("\n");
 #else
-    printf ("FAIL y,x=%a,%a ref=%a z=%a\n", (double) x1, (double) x2, (double) y, (double) z);
+    printf ("FAIL y,x="); print_float16 (x1); printf (","); print_float16 (x2);
+    printf (" ref="); print_float16 (y); printf (" z="); print_float16 (z);
+    printf ("\n");
 #endif
     fflush (stdout);
 #ifndef DO_NOT_ABORT
