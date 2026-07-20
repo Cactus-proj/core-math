@@ -158,6 +158,21 @@ fix_underflow (_Float16 x1, _Float16 x2, _Float16 y)
   mpfr_clear (t2);
 }
 
+// When x is a NaN, returns 1 if x is an sNaN and 0 if it is a qNaN
+static inline int is_signaling(_Float16 x) {
+  union_t _x = {.x = x};
+
+  return !(_x.n & (1u << 9));
+}
+
+// print snan/qnan
+static void
+print_float16 (_Float16 x)
+{
+  if (!is_nan (x)) { printf ("%la", (double) x); return; }
+  printf ("%cnan", is_signaling (x) ? 's' : 'q');
+}
+
 void
 doit (uint16_t n1, uint16_t n2)
 {
@@ -185,9 +200,13 @@ doit (uint16_t n1, uint16_t n2)
   if (!is_equal (y, z))
   {
 #ifndef EXCHANGE_X_Y
-    printf ("FAIL x,y=%a,%a ref=%a z=%a\n", (double) x1, (double) x2, (double) y, (double) z);
+    printf ("FAIL x,y="); print_float16 (x1); printf (","); print_float16 (x2);
+    printf (" ref="); print_float16 (y); printf (" z="); print_float16 (z);
+    printf ("\n");
 #else
-    printf ("FAIL y,x=%a,%a ref=%a z=%a\n", (double) x1, (double) x2, (double) y, (double) z);
+    printf ("FAIL y,x="); print_float16 (x1); printf (","); print_float16 (x2);
+    printf (" ref="); print_float16 (y); printf (" z="); print_float16 (z);
+    printf ("\n");
 #endif
     fflush (stdout);
 #ifndef DO_NOT_ABORT
@@ -329,21 +348,6 @@ doit (uint16_t n1, uint16_t n2)
 #endif
 }
 
-// When x is a NaN, returns 1 if x is an sNaN and 0 if it is a qNaN
-static inline int is_signaling(_Float16 x) {
-  union_t _x = {.x = x};
-
-  return !(_x.n & (1u << 9));
-}
-
-// print snan/qnan
-static void
-print_float16 (_Float16 x)
-{
-  if (!is_nan (x)) { printf ("%la", (double) x); return; }
-  printf ("%cnan", is_signaling (x) ? 's' : 'q');
-}
-
 /* check for signaling NaN input */
 static void
 check_signaling_nan (void)
@@ -444,25 +448,7 @@ check_exceptions_aux (uint16_t n1, uint16_t n2)
 {
   _Float16 x1 = asfloat (n1);
   _Float16 x2 = asfloat (n2);
-  _Float16 y = ref_function_under_test (x1, x2);
-  _Float16 z = cr_function_under_test (x1, x2);
-
-  if (!is_equal (y, z))
-  {
-#ifndef EXCHANGE_X_Y
-    printf ("FAIL x,y="); print_float16 (x1); printf (","); print_float16 (x2);
-    printf (" ref="); print_float16 (y); printf (" z="); print_float16 (z);
-    printf ("\n");
-#else
-    printf ("FAIL y,x="); print_float16 (x1); printf (","); print_float16 (x2);
-    printf (" ref="); print_float16 (y); printf (" z="); print_float16 (z);
-    printf ("\n");
-#endif
-    fflush (stdout);
-#ifndef DO_NOT_ABORT
-    exit (1);
-#endif
-  }
+  _Float16 z;
 
   feclearexcept (FE_INEXACT);
   z = cr_function_under_test (x1, x2);
@@ -546,19 +532,18 @@ static int doloop (void)
 
   check_exceptions ();
 
-  // check regular numbers
-  uint16_t nmin = asuint (0x0p0f), nmax = asuint (0x1.ffcp+15f);
+  uint16_t nmin = 0, nmax = 0x8000;
 #if (defined(_OPENMP) && !defined(CORE_MATH_NO_OPENMP))
 #pragma omp parallel for
 #endif
-  for (uint16_t n1 = nmin; n1 <= nmax; n1++)
-		for (uint16_t n2 = nmin; n2 <= nmax; n2++)
-  	{
-    	doit (n1, n2);
-    	doit (n1 | 0x8000, n2);
-    	doit (n1, n2 | 0x8000);
-    	doit (n1 | 0x8000, n2 | 0x8000);
-  	}
+  for (uint16_t n1 = nmin; n1 < nmax; n1++)
+    for (uint16_t n2 = nmin; n2 < nmax; n2++)
+    {
+      doit (n1, n2);
+      doit (n1 | 0x8000, n2);
+      doit (n1, n2 | 0x8000);
+      doit (n1 | 0x8000, n2 | 0x8000);
+    }
   printf ("all ok\n");
   return 0;
 }

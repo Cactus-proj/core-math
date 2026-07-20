@@ -1,6 +1,6 @@
 /* Check correctness of bivariate bfloat16 function by exhaustive search.
 
-Copyright (c) 2022-2025 Alexei Sibidanov and Paul Zimmermann
+Copyright (c) 2022-2026 Alexei Sibidanov and Paul Zimmermann
 
 This file is part of the CORE-MATH project
 (https://core-math.gitlabpages.inria.fr/).
@@ -65,9 +65,8 @@ asfloat (uint16_t n)
 static inline uint16_t
 asuint (__bf16 f)
 {
-	union_t u;
-	u.x = f;
-	return u.n;
+  union_t u = {.x = f};
+  return u.n;
 }
 
 /* define our own is_nan function to avoid depending from math.h */
@@ -81,7 +80,6 @@ is_nan (__bf16 x)
   return (e == 0xff || e == 0x1ff) && (u & 0x7f) != 0;
 }
 
-/* define our own is_inf function to avoid depending from math.h */
 /* define our own is_inf function to avoid depending from math.h */
 static inline int
 is_inf (__bf16 x)
@@ -158,6 +156,21 @@ fix_underflow (__bf16 x1, __bf16 x2, __bf16 y)
   mpfr_clear (t2);
 }
 
+// When x is a NaN, returns 1 if x is an sNaN and 0 if it is a qNaN
+static inline int is_signaling(__bf16 x) {
+  union_t _x = {.x = x};
+
+  return !(_x.n & (1u << 6));
+}
+
+// print snan/qnan
+static void
+print_bf16 (__bf16 x)
+{
+  if (!is_nan (x)) { printf ("%la", (double) x); return; }
+  printf ("%cnan", is_signaling (x) ? 's' : 'q');
+}
+
 void
 doit (uint16_t n1, uint16_t n2)
 {
@@ -185,9 +198,11 @@ doit (uint16_t n1, uint16_t n2)
   if (!is_equal (y, z))
   {
 #ifndef EXCHANGE_X_Y
-    printf ("FAIL x,y=%a,%a ref=%a z=%a\n", (double) x1, (double) x2, (double) y, (double) z);
+    printf ("FAIL x,y="); print_bf16 (x1); printf (","); print_bf16 (x2);
+    printf (" ref="); print_bf16 (y); printf (" z="); print_bf16 (z); printf ("\n");
 #else
-    printf ("FAIL y,x=%a,%a ref=%a z=%a\n", (double) x1, (double) x2, (double) y, (double) z);
+    printf ("FAIL y,x="); print_bf16 (x1); printf (","); print_bf16 (x2);
+    printf (" ref="); print_bf16 (y); printf (" z="); print_bf16 (z); printf ("\n");
 #endif
     fflush (stdout);
 #ifndef DO_NOT_ABORT
@@ -329,13 +344,6 @@ doit (uint16_t n1, uint16_t n2)
 #endif
 }
 
-// When x is a NaN, returns 1 if x is an sNaN and 0 if it is a qNaN
-static inline int is_signaling(__bf16 x) {
-  union_t _x = {.x = x};
-
-  return !(_x.n & (1u << 6));
-}
-
 /* check for signaling NaN input */
 static void
 check_signaling_nan (void)
@@ -436,41 +444,43 @@ check_exceptions_aux (uint16_t n1, uint16_t n2)
 {
   __bf16 x1 = asfloat (n1);
   __bf16 x2 = asfloat (n2);
+  __bf16 z;
+
   feclearexcept (FE_INEXACT);
-  __bf16 y = cr_function_under_test (x1, x2);
+  z = cr_function_under_test (x1, x2);
   int inex = fetestexcept (FE_INEXACT);
   // there should be no inexact exception if the result is NaN, +/-Inf or +/-0
-  if (inex && (is_nan (y) || is_inf (y) || y == 0))
+  if (inex && (is_nan (z) || is_inf (z) || z == 0))
   {
 #ifndef EXCHANGE_X_Y
     fprintf (stderr, "Error, for x,y=%a,%a, inexact exception set (z=%a)\n",
-             (double) x1, (double) x2, (double) y);
+             (double) x1, (double) x2, (double) z);
 #else
     fprintf (stderr, "Error, for y,x=%a,%a, inexact exception set (z=%a)\n",
-             (double) x1, (double) x2, (double) y);
+             (double) x1, (double) x2, (double) z);
 #endif
 #ifndef DO_NOT_ABORT
     exit (1);
 #endif
   }
   feclearexcept (FE_OVERFLOW);
-  y = cr_function_under_test (x1, x2);
+  z = cr_function_under_test (x1, x2);
   inex = fetestexcept (FE_OVERFLOW);
   if (inex)
   {
     fprintf (stderr, "Error, for x,y=%a,%a, overflow exception set (z=%a)\n",
-						 (double) x1, (double) x2, (double) y);
+						 (double) x1, (double) x2, (double) z);
 #ifndef DO_NOT_ABORT
     exit (1);
 #endif
   }
   feclearexcept (FE_UNDERFLOW);
-  y = cr_function_under_test (x1, x2);
+  z = cr_function_under_test (x1, x2);
   inex = fetestexcept (FE_UNDERFLOW);
   if (inex)
   {
     fprintf (stderr, "Error, for x,y=%a,%a, underflow exception set (z=%a)\n",
-						 (double) x1, (double) x2, (double) y);
+						 (double) x1, (double) x2, (double) z);
 #ifndef DO_NOT_ABORT
     exit (1);
 #endif
@@ -499,7 +509,6 @@ check_exceptions (void)
 
 static int doloop (void)
 {
-	
   //checking all sNaN, qNaN, Inf
   for (uint16_t u1 = 0x7f81; u1 < 0x8000; u1++) {
     for (uint32_t u2 = 0; u2 < 0x10000; u2++) {
@@ -518,13 +527,12 @@ static int doloop (void)
 
   check_exceptions ();
 
-  // check regular numbers
-  uint16_t nmin = asuint (0x0p0f), nmax = asuint (0x1.fep+127f);
+  uint16_t nmin = 0, nmax = 0x8000;
 #if (defined(_OPENMP) && !defined(CORE_MATH_NO_OPENMP))
 #pragma omp parallel for
 #endif
-  for (uint16_t n1 = nmin; n1 <= nmax; n1++)
-    for (uint16_t n2 = nmin; n2 <= nmax; n2++)
+  for (uint16_t n1 = nmin; n1 < nmax; n1++)
+    for (uint16_t n2 = nmin; n2 < nmax; n2++)
   	{
           doit (n1, n2);
           doit (n1 | 0x8000, n2);

@@ -417,9 +417,9 @@ __bf16 cr_pow_bf16(__bf16 x, __bf16 y){
     if ((ux & 0x7fff) > 0x7f80) return x + x; // x = NaN
     if ((uy & 0x7fff) == 0x7f80) { // y = +/-Inf
       if (((ux & 0x7fff) < 0x3f80) ^ (uy >> 15))
-        return posinf.f; // |x| < 1 && y = -Inf or |x| > 1 && y = +Inf
-      else
         return poszero.f; // |x| < 1 && y = +Inf or |x| > 1 && y = -Inf
+      else
+        return posinf.f; // |x| < 1 && y = -Inf or |x| > 1 && y = +Inf
     }
     return y + y; // y = NaN
   }
@@ -441,6 +441,7 @@ __bf16 cr_pow_bf16(__bf16 x, __bf16 y){
     if ((ux & 0x7fff) == 0x7f80) { // x = +/-Inf
       if (!isodd(vy)) ux &= 0x7fff; // y even -> ret will be positive
       if (uy >> 15) ux &= 0x8000; // y < 0 -> ret will be +/-0
+      vx.u = ux;
       return vx.f;
     }
     if ((ux & 0x7fff) > 0x7f80) return x + x; // x is NaN

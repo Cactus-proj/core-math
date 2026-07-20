@@ -1,6 +1,6 @@
 /* Correctly-rounded Euclidean distance function (hypot) for bfloat16 value.
 
-Copyright (c) 2025 Maxence Ponsardin and Paul Zimmermann
+Copyright (c) 2025-2026 Maxence Ponsardin and Paul Zimmermann
 
 This file is part of the CORE-MATH project
 (https://core-math.gitlabpages.inria.fr/).
@@ -38,6 +38,33 @@ SOFTWARE.
 #pragma STDC FENV_ACCESS ON
 
 typedef union {double f; uint64_t u;} b64u64_u;
+typedef union {__bf16 f; uint16_t u;} b16u16_u;
+
+static inline uint16_t
+asuint (__bf16 f)
+{
+  b16u16_u u = {.f = f};
+  return u.u;
+}
+
+/* define our own is_inf function to avoid depending from math.h */
+static inline int
+is_inf (__bf16 x)
+{
+  // +Inf is encoded as 0x7f80, and -Inf as 0xff80
+  uint16_t u = asuint (x);
+  int e =  u >> 7;
+  return (e == 0xff || e == 0x1ff) && (u & 0x7f) == 0;
+}
+
+static inline int
+is_qnan (__bf16 x)
+{
+  // +qnan is encoded as 0x7fc0 to 0x7fff
+  uint16_t u = asuint (x);
+  u = u & 0x7fff;
+  return 0x7fc0 <= u;
+}
 
 __bf16 cr_hypot_bf16(__bf16 x, __bf16 y){
   b64u64_u tx = {.f = x};
@@ -46,6 +73,11 @@ __bf16 cr_hypot_bf16(__bf16 x, __bf16 y){
      for example with x,y=nan,0x1p-133 we would get a spurious inexact
      exception */
   double z = __builtin_sqrt (tx.f * tx.f + ty.f * ty.f);
+
+  // hypot(+/-inf,qnan) = +inf
+  if (is_inf (tx.f) && is_qnan (ty.f)) return tx.f * tx.f;
+  if (is_inf (ty.f) && is_qnan (tx.f)) return ty.f * ty.f;
+
   __bf16 ret = z;
 #ifdef CORE_MATH_SUPPORT_ERRNO
   /* there is underflow for z < 0x1p-126 for rndz/rndd,
