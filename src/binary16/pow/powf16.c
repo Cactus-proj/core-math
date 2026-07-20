@@ -226,12 +226,11 @@ _Float16 cr_powf16(_Float16 x, _Float16 y){
 		// the case |x| = 1 was checked above
 		if ((vx.u & 0x7fff) > 0x7c00) return x + x; // x = NaN
 		if ((vy.u & 0x7fff) == 0x7c00) { // y = +/-Inf
-			if (((vx.u & 0x7fff) < 0x3c00) ^ (vy.u >> 15)) {
-				return posinf.f; // |x| < 1 && y = -Inf or |x| > 1 && y = +Inf
-			} else {
-				return poszero.f; // |x| < 1 && y = +Inf or |x| > 1 && y = -Inf
-			}
-		}
+                  if (((vx.u & 0x7fff) < 0x3c00) ^ (vy.u >> 15))
+                    return poszero.f; // |x| < 1 && y = +Inf or |x| > 1 && y = -Inf
+		  else
+                    return posinf.f; // |x| < 1 && y = -Inf or |x| > 1 && y = +Inf
+                }
 		return y + y; // y = NaN
 	}
 	if (!(vx.u & 0x7fff)) { // if x = 0

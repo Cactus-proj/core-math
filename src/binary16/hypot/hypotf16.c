@@ -41,10 +41,40 @@ SOFTWARE.
 typedef union {_Float16 f; uint16_t u;} b16u16_u;
 typedef union {double f; uint64_t u;} b64u64_u;
 
+static inline uint16_t
+asuint (_Float16 f)
+{
+  b16u16_u u = {.f = f};
+  return u.u;
+}
+
+/* define our own is_qnan function to avoid depending from math.h */
+static inline int
+is_qnan (_Float16 x)
+{
+  uint16_t u = asuint (x);
+  int e = u >> 10;
+  return (e == 0x1f || e == 0x3f) && (u & 0x0200) != 0;
+}
+
+/* define our own is_inf function to avoid depending from math.h */
+static inline int
+is_inf (_Float16 x)
+{
+  uint16_t u = asuint (x);
+  int e =  u >> 10;
+  return (e == 0x1f || e == 0x3f) && (u & 0x03ff) == 0;
+}
+
 _Float16 cr_hypotf16(_Float16 x, _Float16 y){
   b64u64_u tx = {.f = x};
   b64u64_u ty = {.f = y};
-  double ret = __builtin_sqrt(tx.f * tx.f + ty.f * ty.f);
+  double ret = __builtin_sqrt (tx.f * tx.f + ty.f * ty.f);
+
+  // hypot(+/-inf,qnan) = +inf
+  if (is_inf (tx.f) && is_qnan (ty.f)) return tx.f * tx.f;
+  if (is_inf (ty.f) && is_qnan (tx.f)) return ty.f * ty.f;
+
 #ifdef CORE_MATH_SUPPORT_ERRNO
   int rnd = fegetround();
   if (rnd == FE_TONEAREST) { // rounding mode is rndn

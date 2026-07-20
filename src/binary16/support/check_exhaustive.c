@@ -191,7 +191,7 @@ doit (uint16_t n1, uint16_t n2)
 #endif
     fflush (stdout);
 #ifndef DO_NOT_ABORT
-   	exit (1);
+    exit (1);
 #endif
   }
 
@@ -238,7 +238,7 @@ doit (uint16_t n1, uint16_t n2)
     printf ("Missing overflow exception for x,y=%a,%a (z=%a)\n", (double) x1, (double) x2, (double) y);
     fflush (stdout);
 #ifndef DO_NOT_ABORT
-   	exit (1);
+    exit (1);
 #endif
   }
 #endif // CORE_MATH_NOCHECK_OVERFLOW
@@ -250,7 +250,7 @@ doit (uint16_t n1, uint16_t n2)
     printf ("Spurious inexact exception for x,y=%a,%a (z=%a)\n", (double) x1, (double) x2, (double) y);
     fflush (stdout);
 #ifndef DO_NOT_ABORT
-   	exit (1);
+    exit (1);
 #endif
   }
   if ((inex_y != 0) && (inex_z == 0))
@@ -258,7 +258,7 @@ doit (uint16_t n1, uint16_t n2)
     printf ("Missing inexact exception for x,y=%a,%a (z=%a)\n", (double) x1, (double) x2, (double) y);
     fflush (stdout);
 #ifndef DO_NOT_ABORT
-   	exit (1);
+    exit (1);
 #endif
   }
 #endif
@@ -334,6 +334,14 @@ static inline int is_signaling(_Float16 x) {
   union_t _x = {.x = x};
 
   return !(_x.n & (1u << 9));
+}
+
+// print snan/qnan
+static void
+print_float16 (_Float16 x)
+{
+  if (!is_nan (x)) { printf ("%la", (double) x); return; }
+  printf ("%cnan", is_signaling (x) ? 's' : 'q');
 }
 
 /* check for signaling NaN input */
@@ -436,41 +444,59 @@ check_exceptions_aux (uint16_t n1, uint16_t n2)
 {
   _Float16 x1 = asfloat (n1);
   _Float16 x2 = asfloat (n2);
+  _Float16 y = ref_function_under_test (x1, x2);
+  _Float16 z = cr_function_under_test (x1, x2);
+
+  if (!is_equal (y, z))
+  {
+#ifndef EXCHANGE_X_Y
+    printf ("FAIL x,y="); print_float16 (x1); printf (","); print_float16 (x2);
+    printf (" ref="); print_float16 (y); printf (" z="); print_float16 (z);
+    printf ("\n");
+#else
+    printf ("FAIL y,x=%a,%a ref=%a z=%a\n", (double) x1, (double) x2, (double) y, (double) z);
+#endif
+    fflush (stdout);
+#ifndef DO_NOT_ABORT
+    exit (1);
+#endif
+  }
+
   feclearexcept (FE_INEXACT);
-  _Float16 y = cr_function_under_test (x1, x2);
+  z = cr_function_under_test (x1, x2);
   int inex = fetestexcept (FE_INEXACT);
   // there should be no inexact exception if the result is NaN, +/-Inf or +/-0
-  if (inex && (is_nan (y) || is_inf (y) || y == 0))
+  if (inex && (is_nan (z) || is_inf (z) || z == 0))
   {
 #ifndef EXCHANGE_X_Y
     fprintf (stderr, "Error, for x,y=%a,%a, inexact exception set (z=%a)\n",
-             (double) x1, (double) x2, (double) y);
+             (double) x1, (double) x2, (double) z);
 #else
     fprintf (stderr, "Error, for y,x=%a,%a, inexact exception set (z=%a)\n",
-             (double) x1, (double) x2, (double) y);
+             (double) x1, (double) x2, (double) z);
 #endif
 #ifndef DO_NOT_ABORT
     exit (1);
 #endif
   }
   feclearexcept (FE_OVERFLOW);
-  y = cr_function_under_test (x1, x2);
+  z = cr_function_under_test (x1, x2);
   inex = fetestexcept (FE_OVERFLOW);
   if (inex)
   {
     fprintf (stderr, "Error, for x,y=%a,%a, overflow exception set (z=%a)\n",
-						 (double) x1, (double) x2, (double) y);
+						 (double) x1, (double) x2, (double) z);
 #ifndef DO_NOT_ABORT
     exit (1);
 #endif
   }
   feclearexcept (FE_UNDERFLOW);
-  y = cr_function_under_test (x1, x2);
+  z = cr_function_under_test (x1, x2);
   inex = fetestexcept (FE_UNDERFLOW);
   if (inex)
   {
     fprintf (stderr, "Error, for x,y=%a,%a, underflow exception set (z=%a)\n",
-						 (double) x1, (double) x2, (double) y);
+						 (double) x1, (double) x2, (double) z);
 #ifndef DO_NOT_ABORT
     exit (1);
 #endif
@@ -499,7 +525,7 @@ check_exceptions (void)
 
 static int doloop (void)
 {
-	
+
 	//checking all sNaN, qNaN, Inf
 	for (uint16_t u1 = 0x7c00; u1 < 0x8000; u1++) {
 		for (uint32_t u2 = 0; u2 < 0x10000; u2++) {
