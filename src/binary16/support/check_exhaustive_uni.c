@@ -420,18 +420,11 @@ check_exceptions (void)
 
 static int doloop (void)
 {
-  // checking all Inf, sNaN, qNaN
-	for (uint16_t u = 0x7c00; u < 0x8000; u++) {
-  	doit (u);
-  	doit (u | 0x8000);
-	}
-
   check_signaling_nan ();
 
   check_exceptions ();
 
-  // check regular numbers
-  uint16_t nmin = asuint (0x0p0f), nmax = asuint (0x1.ffcp+15f);
+  uint16_t nmin = 0, nmax = 0x7fff;
 #if (defined(_OPENMP) && !defined(CORE_MATH_NO_OPENMP))
 #pragma omp parallel for
 #endif
