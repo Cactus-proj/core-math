@@ -80,12 +80,14 @@ roundeven_finite (double x)
 // don't use the MXCSR register since it is not affected by __bf16 operations
 static fexcept_t get_flag (void) {
   fexcept_t flag;
-  fegetexceptflag (&flag, FE_INEXACT);
+  fegetexceptflag (&flag, FE_INEXACT | FE_UNDERFLOW);
   return flag;
 }
 
+// also save/restore the underflow flag otherwise for x,y=0x1.8p+1,-0x1.f8p+5
+// and rndz we get a spurious underflow (result z=0x1p-126 is exact)
 static void set_flag (fexcept_t flag) {
-  fesetexceptflag (&flag, FE_INEXACT);
+  fesetexceptflag (&flag, FE_INEXACT | FE_UNDERFLOW);
 }
 
 // copied from compoundf16.c
@@ -108,9 +110,8 @@ static inline int isodd(b16u16_u v) {
 // Returns 1 if x is an sNaN and 0 otherwise
 static inline int is_signaling_bf16(__bf16 x) {
   b16u16_u v = {.f = x};
-  v.u ^= 0x40; // toggle quiet/signaling bit
-
-  return (v.u & 0x7fff) > 0x7f80;
+  uint16_t u = v.u & 0x7fff; // mask sign bit
+  return 0x7f80 < u && u < 0x7fc0;
 }
 
 /* this routine is called with x <= -1
@@ -165,7 +166,7 @@ __attribute__((noinline)) __bf16 as_compoundf_special(__bf16 x, __bf16 y){
     if (ax == 0xff00){ // x is +Inf or -Inf
       if (nx.u>>15) return 0.0f / 0.0f; // x = -Inf, rule (g)
       // (1 + Inf)^y = +Inf for y > 0, +0 for y < 0
-      return (ny.u>>16) ? 1.0f/x : x;
+      return (ny.u>>15) ? 1.0f/x : x;
     }
     if (ax > 0xff00) return x + y; // x is NaN
     if (nx.u > mone.u) {
@@ -957,7 +958,6 @@ accurate_path (float x, float y, int exact, fexcept_t flag)
 
 // code inspired from compoundf16.c
 __bf16 cr_compound_bf16(__bf16 xf16, __bf16 yf16){
-
   float x = xf16, y = yf16;
 
   /* Rules from IEEE 754-2019 for compound (x, n) with n integer:
@@ -1053,5 +1053,5 @@ __bf16 cr_compound_bf16(__bf16 xf16, __bf16 yf16){
 
 // dummy function since GNU libc does not provide it
 __bf16 compound_bf16 (__bf16 x, __bf16 y) {
-	return (__bf16) powf (1.0f + (float) x, (float) y);
+  return (__bf16) powf (1.0f + (float) x, (float) y);
 }

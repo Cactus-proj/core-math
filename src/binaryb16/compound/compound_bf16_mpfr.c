@@ -32,10 +32,10 @@ typedef union {__bf16 f; uint16_t u; } b16u16_u;
 
 // return non-zero iff x is a signaling NaN
 static inline int is_snan(__bf16 x) {
+  // +snan is encoded as 0x7f81 to 0x7fbf
   b16u16_u v = {.f = x};
-  int e = v.u >> 7;
-  return (e == 0xff || e == 0x1ff) && (v.u & 0x7f) != 0;
-
+  uint16_t u = v.u & 0x7fff; // mask sign bit
+  return 0x7f80 < u && u < 0x7fc0;
 }
 
 /* reference code using MPFR */
