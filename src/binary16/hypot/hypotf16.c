@@ -48,32 +48,26 @@ asuint (_Float16 f)
   return u.u;
 }
 
-/* define our own is_qnan function to avoid depending from math.h */
 static inline int
-is_qnan (_Float16 x)
+is_qnan (uint16_t u)
 {
-  uint16_t u = asuint (x);
-  int e = u >> 10;
-  return (e == 0x1f || e == 0x3f) && (u & 0x0200) != 0;
+  return 0x7e00 <= (u & 0x7fff);
 }
 
-/* define our own is_inf function to avoid depending from math.h */
 static inline int
-is_inf (_Float16 x)
+is_inf (uint16_t u)
 {
-  uint16_t u = asuint (x);
-  int e =  u >> 10;
-  return (e == 0x1f || e == 0x3f) && (u & 0x03ff) == 0;
+  return u == 0x7c00 || u == 0xfc00;
 }
 
 _Float16 cr_hypotf16(_Float16 x, _Float16 y){
-  b64u64_u tx = {.f = x};
-  b64u64_u ty = {.f = y};
+  b16u16_u sx = {.f = x}, sy = {.f = y};
+  b64u64_u tx = {.f = x}, ty = {.f = y};
   double ret = __builtin_sqrt (tx.f * tx.f + ty.f * ty.f);
 
   // hypot(+/-inf,qnan) = +inf
-  if (is_inf (tx.f) && is_qnan (ty.f)) return tx.f * tx.f;
-  if (is_inf (ty.f) && is_qnan (tx.f)) return ty.f * ty.f;
+  if (is_inf (sx.u) && is_qnan (sy.u)) return tx.f * tx.f;
+  if (is_inf (sy.u) && is_qnan (sx.u)) return ty.f * ty.f;
 
 #ifdef CORE_MATH_SUPPORT_ERRNO
   int rnd = fegetround();

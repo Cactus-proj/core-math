@@ -356,90 +356,90 @@ check_signaling_nan (void)
   _Float16 snan;
   for (uint16_t u1 = 0x7c01u; u1 < 0x7e00u; u1++) {
     snan = asfloat (u1);
-		for (uint32_t u2 = 0; u2 < 0x10000; u2++) {
-			_Float16 x2 = asfloat((uint16_t) u2);
-    	_Float16 y = cr_function_under_test (snan, x2);
-    	// check that foo(NaN, x) = NaN
-    	if (!is_nan (y))
-    	{
-      	fprintf (stderr, "Error, foo(sNaN=%x,y=%a) should be NaN, got %a=%x\n",
-        				 u1, (double) x2, (double) y, asuint (y));
+    for (uint32_t u2 = 0; u2 < 0x10000; u2++) {
+      _Float16 x2 = asfloat((uint16_t) u2);
+      _Float16 y = cr_function_under_test (snan, x2);
+      // check that foo(NaN, x) = NaN
+      if (!is_nan (y))
+      {
+        fprintf (stderr, "Error, foo(sNaN=%x,y=%a[%x]) should be NaN, got %a=%x\n",
+                 u1, (double) x2, u2, (double) y, asuint (y));
 #ifndef DO_NOT_ABORT
       	exit (1);
 #endif
-    	}
-    	// check that the signaling bit disappeared
-        if (is_signaling (y))
-    	{
+      }
+      // check that the signaling bit disappeared
+      if (is_signaling (y))
+      {
       	fprintf (stderr, "Error, foo(sNaN=%x,y=%a) should be qNaN, got sNaN=%x\n",
                	 u1, (double) x2, asuint (y));
 #ifndef DO_NOT_ABORT
       	exit (1);
 #endif
-    	}
-			y = cr_function_under_test (x2, snan);
-			// check that foo(x, NaN) = NaN
-			if (!is_nan (y))
-    	{
+      }
+      y = cr_function_under_test (x2, snan);
+      // check that foo(x, NaN) = NaN
+      if (!is_nan (y))
+      {
       	fprintf (stderr, "Error, foo(x=%a,sNaN=%x) should be NaN, got %a=%x\n",
-        				 (double) x2, u1, (double) y, asuint (y));
+                 (double) x2, u1, (double) y, asuint (y));
 #ifndef DO_NOT_ABORT
       	exit (1);
 #endif
-    	}
-    	// check that the signaling bit disappeared
-        if (is_signaling (y))
-    	{
+      }
+      // check that the signaling bit disappeared
+      if (is_signaling (y))
+      {
       	fprintf (stderr, "Error, foo(x=%a,sNaN=%x) should be qNaN, got sNaN=%x\n",
                	 (double) x2, u1, asuint (y));
 #ifndef DO_NOT_ABORT
       	exit (1);
 #endif
-    	}
-		}
+      }
+    }
     // also test sNaN with sign bit set
     snan = asfloat (0x8000 + u1);
-		for (uint32_t u2 = 0; u2 < 0x10000; u2++) {
-			_Float16 x2 = asfloat((uint16_t) u2);
-    	_Float16 y = cr_function_under_test (snan, x2);
-    	// check that foo(NaN, x) = NaN
-    	if (!is_nan (y))
-    	{
+    for (uint32_t u2 = 0; u2 < 0x10000; u2++) {
+      _Float16 x2 = asfloat((uint16_t) u2);
+      _Float16 y = cr_function_under_test (snan, x2);
+      // check that foo(NaN, x) = NaN
+      if (!is_nan (y))
+      {
       	fprintf (stderr, "Error, foo(sNaN=%x,y=%a) should be NaN, got %a=%x\n",
-        				 u1, (double) x2, (double) y, asuint (y));
+                 u1, (double) x2, (double) y, asuint (y));
 #ifndef DO_NOT_ABORT
       	exit (1);
 #endif
-    	}
-    	// check that the signaling bit disappeared
-        if (is_signaling (y))
-    	{
+      }
+      // check that the signaling bit disappeared
+      if (is_signaling (y))
+      {
       	fprintf (stderr, "Error, foo(sNaN=%x,y=%a) should be qNaN, got sNaN=%x\n",
                	 u1, (double) x2, asuint (y));
 #ifndef DO_NOT_ABORT
       	exit (1);
 #endif
-    	}
-			y = cr_function_under_test (x2, snan);
-			// check that foo(x, NaN) = NaN
-			if (!is_nan (y))
-    	{
+      }
+      y = cr_function_under_test (x2, snan);
+      // check that foo(x, NaN) = NaN
+      if (!is_nan (y))
+      {
       	fprintf (stderr, "Error, foo(x=%a,sNaN=%x) should be NaN, got %a=%x\n",
-        				 (double) x2, u1, (double) y, asuint (y));
+                 (double) x2, u1, (double) y, asuint (y));
 #ifndef DO_NOT_ABORT
       	exit (1);
 #endif
-    	}
-    	// check that the signaling bit disappeared
-        if (is_signaling (y))
-    	{
+      }
+      // check that the signaling bit disappeared
+      if (is_signaling (y))
+      {
       	fprintf (stderr, "Error, foo(x=%a,sNaN=%x) should be qNaN, got sNaN=%x\n",
                	 (double) x2, u1, asuint (y));
 #ifndef DO_NOT_ABORT
       	exit (1);
 #endif
-    	}
-		}
+      }
+    }
   }
 }
 
