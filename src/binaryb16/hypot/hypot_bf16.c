@@ -47,36 +47,31 @@ asuint (__bf16 f)
   return u.u;
 }
 
-/* define our own is_inf function to avoid depending from math.h */
 static inline int
-is_inf (__bf16 x)
+is_inf (uint16_t u)
 {
   // +Inf is encoded as 0x7f80, and -Inf as 0xff80
-  uint16_t u = asuint (x);
-  int e =  u >> 7;
-  return (e == 0xff || e == 0x1ff) && (u & 0x7f) == 0;
+  return u == 0x7f80 || u == 0xff80;
 }
 
 static inline int
-is_qnan (__bf16 x)
+is_qnan (uint16_t u)
 {
   // +qnan is encoded as 0x7fc0 to 0x7fff
-  uint16_t u = asuint (x);
-  u = u & 0x7fff;
-  return 0x7fc0 <= u;
+  return 0x7fc0 <= (u & 0x7fff);
 }
 
 __bf16 cr_hypot_bf16(__bf16 x, __bf16 y){
-  b64u64_u tx = {.f = x};
-  b64u64_u ty = {.f = y};
+  b16u16_u sx = {.f = x}, sy = {.f = y};
+  b64u64_u tx = {.f = x}, ty = {.f = y};
   /* we cast the inputs to double precision, since float is not enough,
      for example with x,y=nan,0x1p-133 we would get a spurious inexact
      exception */
   double z = __builtin_sqrt (tx.f * tx.f + ty.f * ty.f);
 
   // hypot(+/-inf,qnan) = +inf
-  if (is_inf (tx.f) && is_qnan (ty.f)) return tx.f * tx.f;
-  if (is_inf (ty.f) && is_qnan (tx.f)) return ty.f * ty.f;
+  if (is_inf (sx.u) && is_qnan (sy.u)) return tx.f * tx.f;
+  if (is_inf (sy.u) && is_qnan (sx.u)) return ty.f * ty.f;
 
   __bf16 ret = z;
 #ifdef CORE_MATH_SUPPORT_ERRNO
