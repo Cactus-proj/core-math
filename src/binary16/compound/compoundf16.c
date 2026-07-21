@@ -961,7 +961,7 @@ __attribute__((noinline)) _Float16 as_compoundf_special(_Float16 x, _Float16 y){
     if (ax == 0xf800){ // x is +Inf or -Inf
       if (nx.u>>15) return 0.0f16 / 0.0f16; // x = -Inf, rule (g)
       // (1 + Inf)^y = +Inf for y > 0, +0 for y < 0
-      return (ny.u>>16) ? 1.0f16/x : x;
+      return (ny.u>>15) ? 1.0f16/x : x;
     }
     if (ax > 0xf800) return x + y; // x is NaN
     if (nx.u > mone.u) {
