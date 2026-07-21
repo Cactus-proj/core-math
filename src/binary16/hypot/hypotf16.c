@@ -41,13 +41,6 @@ SOFTWARE.
 typedef union {_Float16 f; uint16_t u;} b16u16_u;
 typedef union {double f; uint64_t u;} b64u64_u;
 
-static inline uint16_t
-asuint (_Float16 f)
-{
-  b16u16_u u = {.f = f};
-  return u.u;
-}
-
 static inline int
 is_qnan (uint16_t u)
 {
