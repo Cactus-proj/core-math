@@ -107,7 +107,9 @@ check (double x)
   {
     printf ("FAIL x=%la ref=%la z=%la\n", x, y1, y2);
     fflush (stdout);
+#ifndef DO_NOT_ABORT
     exit (1);
+#endif
   }
 }
 

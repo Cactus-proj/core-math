@@ -113,7 +113,9 @@ check (double x)
   {
     printf ("FAIL x=%la sin: ref=%la z=%la\n", x, s1, s2);
     fflush (stdout);
+#ifndef DO_NOT_ABORT
     exit (1);
+#endif
   }
   if (isnan (c1))
     bug = !isnan (c2);
@@ -125,7 +127,9 @@ check (double x)
   {
     printf ("FAIL x=%la cos: ref=%la z=%la\n", x, c1, c2);
     fflush (stdout);
+#ifndef DO_NOT_ABORT
     exit (1);
+#endif
   }
 }
 
