@@ -340,9 +340,10 @@ double cr_tanh(double x){
 
     /* This branch was tested exhaustively with/without fma contraction.
        During this search, a failure was found with the original error
-       bound (e = rh*0x1p-62) and x=0x1.a0112a16e9318p+1 (rndu, no fma
-       contraction). */
-    double e = rh*0x1.0bp-62;
+       bound (e = rh*0x1p-62) and x=+/-0x1.a0112a16e9318p+1 (rndu, no fma
+       contraction). Another failure was found with x=+/-0x1.a0bd10af4ac2bp+1
+       and e = rh*0x1.0cp-62 (rndu, no fma contraction). */
+    double e = rh*0x1.0dp-62;
     rh = fasttwosub(0.5, ph, &rl); rl -= pl;
     rh *= __builtin_copysign(2, x);
     rl *= __builtin_copysign(2, x);
