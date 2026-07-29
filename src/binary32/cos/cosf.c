@@ -181,15 +181,15 @@ float cr_cosf(float x){
   uint32_t ax = t.u<<1;
   int ia;
   double z0 = x, z;
-  if (__builtin_expect(ax>0x99000000u || ax<0x73000000, 0)){
-    if (__builtin_expect(ax<0x73000000, 1)){
-      if (__builtin_expect(ax<0x66000000u, 0)){
-	if(__builtin_expect(ax==0u, 0)) return 1.0f;
-	return 1.0f - 0x1p-25f;
-      }
-      return -0x1p-1f*x*x + 1.0f;
-    }
-    return as_cosf_big(x);
+  if (__builtin_expect(ax>0x99000000u || ax<0x74000000u, 0)){
+    // |x| > 0x1p+26 or |x| < 0x1p-11
+    if (ax<0x74000000u) // |x| < 0x1p-11
+      /* For |x| < 2^-11, cos(x) rounds to the same value as 1-x^2/2
+         for all rounding modes. However, __builtin_fmaf (x/2, -x, 1.0f)
+         would raise a spurious underflow for x/2, which the following
+         formula avoids. */
+      return 0.5f * __builtin_fmaf (x, -x, 2.0f);
+    return as_cosf_big(x); // |x| > 0x1p+26
   }
   if(__builtin_expect(ax<0x82a41896u, 1)){
     if(__builtin_expect(ax==0x812d97c8u, 0)) return as_cosf_database(x, 0.0);
