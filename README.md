@@ -155,6 +155,11 @@ error. When the input is NaN or Inf, errno is not changed.
 
 ## Notes
 
+The CORE-MATH code assumes all computations are rounded at runtime with the
+given rounding mode, for example 1.0f - 0x1p-25f should round to 1.0f in
+binary32 for rounding to nearest or upward, and to nextdown(1) for rounding
+to zero or downward. This requires the option -frounding-math on some compilers.
+
 The CORE-MATH code assumes all double-precision computations are rounded to
 double precision. On x86 processors where these computations are performed
 on the x87 FPU, the user should set up the rounding precision to double
