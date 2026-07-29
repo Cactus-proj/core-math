@@ -111,18 +111,24 @@ float cr_expm1f(float x){
     double r = z + z2*((b[0]+z*b[1]) + z2*(b[2]+z*b[3]) + z4*((b[4]+z*b[5]) + z2*(b[6]+z*b[7])));
     return r;
   }
-  if(__builtin_expect(ax>=0x8562e430u, 0)){  // |x| > 88.72
+  if(__builtin_expect(ax>=0x8562e430u, 0)){  // |x| >= 0x1.62e43p+6 ~ 88.72
     if(ax>(0xffu<<24)) return x + x; // nan
     if(__builtin_expect(ux>>31, 0)){ // x < 0
       if(ax==(0xffu<<24)) return -1.0f;
+      /* The expression -1.0f + 0x1p-26f should be evaluated at run
+         time, with the current rounding mode, and not constant folded at
+         compile time. See the comment about -frounding-math in README.
+         Also, the expression -1.0f + 0x1p-26f is valid on a larger range:
+         for x < -0x1.154244p+4 for rndn, and for x < -0x1.0a2b22p+4 for
+         directed roundings. But this would need a different test for
+         x > 0 and x < 0. */
       return -1.0f + 0x1p-26f;
     }
     if(ax==(0xffu<<24)) return x * x; // +/-inf
 #ifdef CORE_MATH_SUPPORT_ERRNO
     errno = ERANGE;
 #endif
-    float r = 0x1.fffffep127*z;
-    return r;
+    return 0x1.fffffep127f * x;
   }
   double a = iln2*z, ia = roundeven_finite(a), h = a - ia, h2 = h*h;
   b64u64_u u = {.f = ia + big};
