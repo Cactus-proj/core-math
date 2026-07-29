@@ -72,6 +72,8 @@ static double polydd(double xh, double xl, int n, const double c[][2], double *l
 }
 
 // this table contains 129 entries
+// A[j][0] approximates tan(pi/256*j)
+// A[j][1] approximates atan(A[j][0]) - pi/256*j
 static const double A[][2] = {
   {0x0p+0, 0x0p+0}, {0x1.9224e047e368ep-7, 0x1.a3ca6c727c59dp-62},
   {0x1.92346247a91fp-6, 0x1.138b0ef96a186p-64}, {0x1.2dbaae9a05dbp-5, 0x1.36e7f8a3f5e42p-59},
@@ -140,6 +142,8 @@ static const double A[][2] = {
   {0,0}
 };
 
+// c[] is an array with coefficients of a crude piecewise quadratic
+// approximation of atan for a range reduction purpose (to determine index j)
 static const uint16_t c[31][3] = {
   {419, 81, 0}, {500, 81, 0}, {582, 163, 0}, {745, 163, 0}, {908, 326, 0}, {1234, 326, 0},
   {1559, 651, 0}, {2210, 650, 1}, {2860, 1299, 3}, {4156, 1293, 4}, {5444, 2569, 24},
