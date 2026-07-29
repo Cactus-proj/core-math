@@ -452,6 +452,9 @@ float cr_powf(float x0, float y0){
     if(isodd(y0))
       return __builtin_copysignf(0x1p-126f, x0)*0x1p-126f;
     else
+      /* Warning: the expression 0x1p-126f*0x1p-126f should be evaluated
+         at run time, with the current rounding mode, and not constant folded
+         at compile time. See the comment about -frounding-math in README. */
       return 0x1p-126f*0x1p-126f;
   }
   if(__builtin_fabs(z)<0x1p-26) return 1.0 + z;
