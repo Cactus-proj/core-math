@@ -153,6 +153,11 @@ case of overflow or of underflow (following the "underflow after
 rounding" rule). The value of errno is set to EDOM in case of domain
 error. When the input is NaN or Inf, errno is not changed.
 
+Several CORE-MATH functions use __builtin_fma or __builtin_fmaf,
+which may call the corresponding fma or fmaf library functions if not
+available in hardware. CORE-MATH assumes these library functions
+do not set spurious errno.
+
 ## Notes
 
 The CORE-MATH code assumes all computations are rounded at runtime with the
