@@ -538,6 +538,10 @@ static void check_signgam (void) {
   for (unsigned long i = 0; i < sizeof(X)/sizeof(X[0]); i++) {
     signgam = -17;
     cr_function_under_test (X[i]);
+    /* The OpenGroup website says that signgam is unspecified when x is
+       NaN, -Inf or a negative integer:
+       https://pubs.opengroup.org/onlinepubs/9799919799/functions/lgamma.html
+    */
     if (signgam == -17) {
       fprintf (stderr, "Error, signgam unset for x=%a\n", (double) X[i]);
       exit (1);
