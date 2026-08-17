@@ -716,7 +716,7 @@ double cr_tgamma(double x){
   double fx = __builtin_floor(x);
   /* compute k only after the overflow check, otherwise the cast to integer
      might overflow */
-  int64_t k = fx;
+  int64_t k;
   if(__builtin_expect(fx==x, 0)){ /* x is integer */
     if(x == 0.0){
 #ifdef CORE_MATH_SUPPORT_ERRNO
@@ -730,6 +730,7 @@ double cr_tgamma(double x){
 #endif
       return 0.0 / 0.0; /* should raise the "Invalid operation" exception */
     }
+    k = fx;
     double t0h = 1, t0l = 0, x0 = 1;
     for(int i=1; i<k; i++, x0 += 1.0) t0h = mulddd(x0, t0h,t0l, &t0l);
     return t0h + t0l;
@@ -743,6 +744,7 @@ double cr_tgamma(double x){
        errno is set to ERANGE. */
     errno = ERANGE;
 #endif
+    k = fx < (double) INT64_MIN ? INT64_MIN : fx;
     return 0x1p-1022 * sgn[k&1];
   }
 
