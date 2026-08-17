@@ -542,7 +542,7 @@ static void check_signgam (void) {
        NaN, -Inf or a negative integer:
        https://pubs.opengroup.org/onlinepubs/9799919799/functions/lgamma.html
     */
-    if (signgam == -17) {
+    if (!is_nan (X[i]) && signgam == -17) {
       fprintf (stderr, "Error, signgam unset for x=%a\n", (double) X[i]);
       exit (1);
     }
