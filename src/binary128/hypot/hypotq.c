@@ -92,6 +92,13 @@ static inline u128 sqrhU(u128 _a){
   return a11.a;
 }
 
+#ifdef _WIN32
+#define ulong unsigned long long
+#define __builtin_addcl __builtin_addcll
+#else /* !_WIN32 */
+#define ulong unsigned long
+#endif /* ?_WIN32 */
+
 // get full product of unsigned 128x128 bit squaring
 static inline u128 sqrU(u128 _a, u128 *t){
   b128u128_u a, a10, a11, a00;
@@ -103,7 +110,7 @@ static inline u128 sqrU(u128 _a, u128 *t){
   //   a1a0
   //   a1a0
   // a1a1
-  unsigned long c;
+  ulong c;
   a00.b[1] = __builtin_addcl(a00.b[1], a10.b[0], 0, &c);
   a11.b[0] = __builtin_addcl(a11.b[0], a10.b[1], c, &c);
   a11.b[1] = __builtin_addcl(a11.b[1], 0, c, &c);
@@ -117,7 +124,7 @@ static inline u128 sqrU(u128 _a, u128 *t){
 // add two 128 bit numbers with overflow bit
 static inline u128 addUU(u64 *c, u128 _a, u128 _b){
   b128u128_u a, b;
-  unsigned long d;
+  ulong d;
   a.a = _a;
   b.a = _b;
   a.b[0] = __builtin_addcl(a.b[0], b.b[0], 0, &d);
