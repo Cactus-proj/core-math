@@ -28,12 +28,6 @@ SOFTWARE.
 #include "fenv_mpfr.h"
 
 double ref_tgamma(double x){
-  double fx = __builtin_floor(x);
-  if(fx==x){
-    if(x < 0.0) {
-      return __builtin_nanf("12");
-    }
-  }
   mpfr_t y;
   mpfr_init2 (y, 53);
   mpfr_set_d (y, x, MPFR_RNDN);
