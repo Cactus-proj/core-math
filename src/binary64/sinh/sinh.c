@@ -272,6 +272,7 @@ double cr_sinh(double x){
   };
 
   const double s = 0x1.71547652b82fep+12;
+  // 0x1.8000002p+26 = 0x1.8p26 + 0.5: round integer part of ax*s to nearest
   double ax = __builtin_fabs(x), v0 = __builtin_fma(ax, s, 0x1.8000002p+26);
   b64u64_u jt = {.f = v0};
 #if defined(__x86_64__)

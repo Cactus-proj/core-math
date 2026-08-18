@@ -134,15 +134,14 @@ check (double x)
 }
 
 static void
-check_invalid (void)
+check_invalid (uint64_t seed)
 {
-
   double inf = asfloat64 (0x7ff0000000000000ull);
   double minInf = asfloat64 (0xfff0000000000000ull);
-  double sNan = asfloat64 (0x7ff0000000000001ull);
-  double minsNan = asfloat64 (0xfff0000000000001ull);
-  double qNan = asfloat64 (0x7ff8000000000000ull);
-  double minqNan = asfloat64 (0xfff8000000000000ull);
+  double sNan = asfloat64 (0x7ff0000000000000ull + seed);
+  double minsNan = asfloat64 (0xfff0000000000000ull + seed);
+  double qNan = asfloat64 (0x7ff8000000000000ull + seed);
+  double minqNan = asfloat64 (0xfff8000000000000ull + seed);
   double s, c;
 
   // check Inf
@@ -177,11 +176,13 @@ check_invalid (void)
   flag = fetestexcept (FE_INVALID);
   if (!flag)
   {
-    printf ("Missing invalid exception for x=sNaN\n");
+    printf ("Missing invalid exception for x=sNaN[%lx]\n", asuint64 (sNan));
 #ifndef DO_NOT_ABORT
     exit (1);
 #endif
   }
+
+#ifdef CORE_MATH_SUPPORT_ERRNO
   // check EDOM
   // If sNaN is a normal number and s or c is NaN, we should have errno = EDOM.
   int expected_edom = !is_nan (sNan) && (is_nan (s) || is_nan (c));
@@ -193,6 +194,7 @@ check_invalid (void)
       exit(1);
 #endif
     }
+#endif
 
   // Check -sNaN
   feclearexcept (FE_INVALID);
@@ -206,6 +208,8 @@ check_invalid (void)
     exit (1);
 #endif
   }
+
+#ifdef CORE_MATH_SUPPORT_ERRNO
   // check EDOM
   // If -sNaN is a normal number and s or c is NaN, we should have errno = EDOM.
   expected_edom = !is_nan (minsNan) && (is_nan (s) || is_nan (c));
@@ -217,19 +221,22 @@ check_invalid (void)
       exit(1);
 #endif
     }
+#endif
 
   // Check qNaN
   feclearexcept (FE_INVALID);
   cr_sincos (qNan, &s, &c);
-  // check the invalid exception was set
+  // check the invalid exception is not set
   flag = fetestexcept (FE_INVALID);
   if (flag)
   {
-    printf ("Missing invalid exception for x=qNaN\n");
+    printf ("Spurious invalid exception for x=qNaN[%lx]\n", asuint64 (qNan));
 #ifndef DO_NOT_ABORT
     exit (1);
 #endif
   }
+
+#ifdef CORE_MATH_SUPPORT_ERRNO
   // check EDOM
   // If qNaN is a normal number and s or c is NaN, we should have errno = EDOM.
   expected_edom = !is_nan (qNan) && (is_nan (s) || is_nan (c));
@@ -241,6 +248,7 @@ check_invalid (void)
       exit(1);
 #endif
     }
+#endif
 
   // Check -qNaN
   feclearexcept (FE_INVALID);
@@ -254,6 +262,8 @@ check_invalid (void)
     exit (1);
 #endif
   }
+
+#ifdef CORE_MATH_SUPPORT_ERRNO
   // check EDOM
   // If -qNaN is a normal number and s or c is NaN, we should have errno = EDOM.
   expected_edom = !is_nan (minqNan) && (is_nan (s) || is_nan (c));
@@ -265,6 +275,7 @@ check_invalid (void)
       exit(1);
 #endif
     }
+#endif
 }
 
 int
@@ -311,7 +322,9 @@ main (int argc, char *argv[])
   ref_init ();
   ref_fesetround (rnd);
 
-  check_invalid ();
+  check_invalid (0);
+  check_invalid (1);
+  check_invalid (0x7ffffffffffffull);
 
 #define N 1000000000UL /* total number of tests */
 
