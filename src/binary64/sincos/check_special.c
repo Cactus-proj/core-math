@@ -84,6 +84,7 @@ asfloat64 (uint64_t i)
   return u.f;
 }
 
+#ifdef CORE_MATH_SUPPORT_ERRNO
 /* define our own is_nan function to avoid depending from math.h */
 static inline int
 is_nan (double x)
@@ -92,6 +93,7 @@ is_nan (double x)
   uint64_t e = u >> 52;
   return (e == 0x7ff || e == 0xfff) && (u << 12) != 0;
 }
+#endif
 
 static void
 check (double x)
