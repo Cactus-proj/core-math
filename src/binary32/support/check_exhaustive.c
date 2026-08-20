@@ -75,7 +75,11 @@ static inline int
 is_nan (float x)
 {
   uint32_t u = asuint (x);
-  int e = u >> 23;
+  /* added volatile to fix an issue with the Intel library which reports
+     spurious errors with the following command:
+     CORE_MATH_STD_NAME=cr_log10f CORE_MATH_CHECK_STD=true CC=icx ./check.sh --rndd log10f
+  */
+  volatile int e = u >> 23;
   return (e == 0xff || e == 0x1ff) && (u << 9) != 0;
 }
 
