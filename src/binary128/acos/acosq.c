@@ -1,0 +1,1399 @@
+/* Correctly-rounded arc cosine function (acosq) in binary128 floating point format.
+
+Copyright (c) 2026 Alexei Sibidanov <sibid@uvic.ca>
+
+This file is part of the CORE-MATH project
+(https://core-math.gitlabpages.inria.fr/).
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+
+#define _GNU_SOURCE /* to define ...f128 functions */
+#include <fenv.h> // for FE_INVALID, FE_INEXACT, FE_UNDERFLOW
+#include <stdint.h>
+#ifdef __x86_64__
+#include <x86intrin.h>
+#endif
+#include <math.h>
+
+// Warning: clang also defines __GNUC__
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic ignored "-Wunknown-pragmas"
+#endif
+
+#if (defined(__x86_64__) && (defined(__APPLE__) || defined(_WIN32)))
+static inline __float128 local_nanq(__attribute__((unused)) const char *tagp){
+  b128u128_u u;
+  u.a = ~(u128)0u;
+  return u.f;
+}
+#define __builtin_nanf128(tagp) local_nanq(tagp)
+#endif
+
+typedef __int128 i128;
+typedef unsigned __int128 u128;
+typedef uint64_t u64;
+typedef int64_t i64;
+typedef uint32_t u32;
+typedef int32_t i32;
+typedef uint64_t u1x64[1];
+typedef uint64_t u2x64[2];
+typedef uint64_t u3x64[3];
+typedef uint64_t u4x64[4];
+typedef uint64_t u5x64[5];
+typedef uint64_t u6x64[6];
+typedef union {
+  u128 a;
+  i128 as;
+  u64 b[2];
+  i64 bs[2];
+  __float128 f;
+} b128u128_u;
+
+// get high part of unsigned 64x64 bit multiplication
+static inline u64 mhuu(u64 _a, u64 _b){
+  return ((u128)_a*_b)>>64;
+}
+
+static inline void mhu3uu3(u3x64 o, u64 y, const u3x64 x){
+  u128 xy0 = x[0]*(u128)y;
+  u128 xy1 = x[1]*(u128)y;
+  u128 xy2 = x[2]*(u128)y;
+  u64 c;
+  o[0]  = __builtin_addcl(xy1, xy0>>64, 0, &c);
+  o[1]  = __builtin_addcl(xy2, xy1>>64, c, &c);
+  o[2]  = __builtin_addcl(  0, xy2>>64, c, &c);
+}
+
+static inline void mhu3u2u3(u3x64 o, u2x64 y, const u3x64 x){
+  u128 x1y0 = x[1]*(u128)y[0];
+  u128 x2y0 = x[2]*(u128)y[0];
+  u128 x0y1 = x[0]*(u128)y[1];
+  u128 x1y1 = x[1]*(u128)y[1];
+  u128 x2y1 = x[2]*(u128)y[1];
+  x2y0 += x1y0>>64;
+  x1y1 += x0y1>>64;
+  x2y1 += x1y1>>64;
+  u64 c;
+  o[0]  = __builtin_addcl(x1y1,     x2y0, 0, &c);
+  o[1]  = __builtin_addcl(x2y1, x2y0>>64, c, &c);
+  o[2]  = __builtin_addcl(   0, x2y1>>64, c, &c);
+}
+
+// get appoximate high part of unsigned 128x128 bit multiplication
+static inline u128 mhUU(u128 _a, u128 _b){
+  b128u128_u a, b, a1b0, a0b1, a1b1;
+  a.a = _a;
+  b.a = _b;
+  a1b0.a = (u128)a.b[1]*b.b[0];
+  a0b1.a = (u128)a.b[0]*b.b[1];
+  a1b1.a = (u128)a.b[1]*b.b[1];
+  a1b1.a += a1b0.b[1];
+  a1b1.a += a0b1.b[1];
+  return a1b1.a;
+}
+
+// o = a + b
+static inline void addu1u1u1(u1x64 o, const u1x64 a, const u1x64 b){
+  o[0] = a[0]+b[0];
+}
+
+static inline void mhu1u1u1(u1x64 o, const u1x64 b, const u1x64 a){
+  u128 a1b0 = (u128)a[0]*b[0];
+  o[0] = a1b0>>64;
+}
+
+// o = a + b
+static inline void addu2u2u2(u2x64 o, const u2x64 a, const u2x64 b){
+  u64 c;
+  o[0] = __builtin_addcl(a[0], b[0], 0, &c);
+  o[1] = __builtin_addcl(a[1], b[1], c, &c);
+}
+
+static inline void mhu2u2u2(u2x64 o, const u2x64 b, const u2x64 a){
+  u64 c0, c1, t, o0, o1;
+  u128 a1b0 = (u128)a[1]*b[0];
+  o0 = a1b0>>64;
+
+  u128 a0b1 = (u128)a[0]*b[1];
+  u128 a1b1 = (u128)a[1]*b[1];
+  t  = __builtin_addcl(a1b1, a0b1>>64, 0, &c0);
+  o0 = __builtin_addcl(o0, t,  0, &c1);
+  o1 = __builtin_addcl(a1b1>>64,   0, c0, &c0);
+  o1 = __builtin_addcl(o1, 0, c1, &c1);
+
+  o[0] = o0;
+  o[1] = o1;
+}
+
+// o = a + b
+static inline void addu3u3u3(u3x64 o, const u3x64 a, const u3x64 b){
+  u64 c;
+  o[0] = __builtin_addcl(a[0], b[0], 0, &c);
+  o[1] = __builtin_addcl(a[1], b[1], c, &c);
+  o[2] = __builtin_addcl(a[2], b[2], c, &c);
+}
+
+// o = a - b
+static inline void subu3u3u3(u3x64 o, const u3x64 a, const u3x64 b){
+  u64 c;
+  o[0] = __builtin_subcl(a[0], b[0], 0, &c);
+  o[1] = __builtin_subcl(a[1], b[1], c, &c);
+  o[2] = __builtin_subcl(a[2], b[2], c, &c);
+}
+
+static inline void mhu3u3u3(u3x64 o, const u3x64 b, const u3x64 a){
+  u64 c, o0, o1, o2;
+  u128 a1b1 = (u128)a[1]*b[1];
+  u128 a2b0 = (u128)a[2]*b[0];
+  u128 a0b2 = (u128)a[0]*b[2];
+  u128 a2b1 = (u128)a[2]*b[1];
+  u128 a1b2 = (u128)a[1]*b[2];
+  u128 a2b2 = (u128)a[2]*b[2];
+
+  a2b1 += a2b0>>64;
+  a1b2 += a0b2>>64;
+
+  o0 = a1b1>>64;
+  o1 = a2b2;
+  o2 = a2b2>>64;
+  o0 = __builtin_addcl(o0, a2b1, 0, &c);
+  o1 = __builtin_addcl(o1, a2b1>>64, c, &c);
+  o2 = __builtin_addcl(o2, 0, c, &c);
+
+  o[0] = __builtin_addcl(o0, a1b2, 0, &c);
+  o[1] = __builtin_addcl(o1, a1b2>>64, c, &c);
+  o[2] = __builtin_addcl(o2,  0, c, &c);
+}
+
+// o = a + b
+static inline void addu4u4u4(u4x64 o, const u4x64 a, const u4x64 b){
+  u64 c;
+  o[0] = __builtin_addcl(a[0], b[0], 0, &c);
+  o[1] = __builtin_addcl(a[1], b[1], c, &c);
+  o[2] = __builtin_addcl(a[2], b[2], c, &c);
+  o[3] = __builtin_addcl(a[3], b[3], c, &c);
+}
+
+static inline void mhu4u4u4(u4x64 o, const u4x64 b, const u4x64 a){
+  u64 c, o0, o1, o2, o3;
+  u128 a3b0 = (u128)a[3]*b[0];
+  u128 a3b2 = (u128)a[3]*b[2];
+  u128 a2b1 = (u128)a[2]*b[1];
+  u128 a3b1 = (u128)a[3]*b[1];
+  u128 a1b2 = (u128)a[1]*b[2];
+  u128 a2b2 = (u128)a[2]*b[2];
+  u128 a0b3 = (u128)a[0]*b[3];
+  u128 a1b3 = (u128)a[1]*b[3];
+  u128 a2b3 = (u128)a[2]*b[3];
+  u128 a3b3 = (u128)a[3]*b[3];
+
+  a3b1 += a2b1>>64;
+  a2b2 += a1b2>>64;
+
+  o0 = __builtin_addcl(a0b3>>64, a1b3, 0, &c);
+  o1 = __builtin_addcl(a1b3>>64, a2b3, c, &c);
+  o2 = __builtin_addcl(a2b3>>64, a3b3, c, &c);
+  o3 = __builtin_addcl(a3b3>>64,    0, c, &c);
+
+  o0 = __builtin_addcl(o0, a3b0>>64, 0, &c);
+  o1 = __builtin_addcl(o1, a3b2, c, &c);
+  o2 = __builtin_addcl(o2, a3b2>>64, c, &c);
+  o3 = __builtin_addcl(o3, 0, c, &c);
+
+  o0 = __builtin_addcl(o0, a3b1, 0, &c);
+  o1 = __builtin_addcl(o1, a3b1>>64, c, &c);
+  o2 = __builtin_addcl(o2, 0, c, &c);
+  o3 = __builtin_addcl(o3, 0, c, &c);
+
+  o[0] = __builtin_addcl(o0, a2b2, 0, &c);
+  o[1] = __builtin_addcl(o1, a2b2>>64, c, &c);
+  o[2] = __builtin_addcl(o2, 0, c, &c);
+  o[3] = __builtin_addcl(o3, 0, c, &c);
+}
+
+// o = a - b
+static inline void subu5u5u5(u5x64 o, const u5x64 a, const u5x64 b){
+  u64 c;
+  o[0] = __builtin_subcl(a[0], b[0], 0, &c);
+  o[1] = __builtin_subcl(a[1], b[1], c, &c);
+  o[2] = __builtin_subcl(a[2], b[2], c, &c);
+  o[3] = __builtin_subcl(a[3], b[3], c, &c);
+  o[4] = __builtin_subcl(a[4], b[4], c, &c);
+}
+
+// o = a + b
+static inline void addu5u5u5(u5x64 o, const u5x64 a, const u5x64 b){
+  u64 c;
+  o[0] = __builtin_addcl(a[0], b[0], 0, &c);
+  o[1] = __builtin_addcl(a[1], b[1], c, &c);
+  o[2] = __builtin_addcl(a[2], b[2], c, &c);
+  o[3] = __builtin_addcl(a[3], b[3], c, &c);
+  o[4] = __builtin_addcl(a[4], b[4], c, &c);
+}
+
+static inline void mhu5u5u5(u5x64 o, const u5x64 b, const u5x64 a){
+  u64 c0, c1, t, o0, o1, o2, o3, o4;
+  u128 a4b0 = (u128)a[4]*b[0];
+  o0 = a4b0>>64;
+
+  u128 a3b1 = (u128)a[3]*b[1];
+  u128 a4b1 = (u128)a[4]*b[1];
+  t  = __builtin_addcl(a4b1, a3b1>>64,  0, &c0);
+  o0 = __builtin_addcl(o0, t,  0, &c1);
+  o1 = __builtin_addcl(a4b1>>64,    0, c0, &c0);
+  o1 = __builtin_addcl(o1, 0, c1, &c1);
+
+  u128 a2b2 = (u128)a[2]*b[2];
+  u128 a3b2 = (u128)a[3]*b[2];
+  t  = __builtin_addcl(a3b2, a2b2>>64,  0, &c0);
+  o0 = __builtin_addcl(o0, t,  0, &c1);
+  u128 a4b2 = (u128)a[4]*b[2];
+  t  = __builtin_addcl(a4b2, a3b2>>64, c0, &c0);
+  o1 = __builtin_addcl(o1, t, c1, &c1);
+  o2 = __builtin_addcl(a4b2>>64,    0, c0, &c0);
+  o2 = __builtin_addcl(o2, 0, c1, &c1);
+
+  u128 a1b3 = (u128)a[1]*b[3];
+  u128 a2b3 = (u128)a[2]*b[3];
+  t  = __builtin_addcl(a2b3, a1b3>>64,  0, &c0);
+  o0 = __builtin_addcl(o0, t,  0, &c1);
+  u128 a3b3 = (u128)a[3]*b[3];
+  t  = __builtin_addcl(a3b3, a2b3>>64, c0, &c0);
+  o1 = __builtin_addcl(o1, t, c1, &c1);
+  u128 a4b3 = (u128)a[4]*b[3];
+  t  = __builtin_addcl(a4b3, a3b3>>64, c0, &c0);
+  o2 = __builtin_addcl(o2, t, c1, &c1);
+  o3 = __builtin_addcl(a4b3>>64,    0, c0, &c0);
+  o3 = __builtin_addcl(o3, 0, c1, &c1);
+
+  u128 a0b4 = (u128)a[0]*b[4];
+  u128 a1b4 = (u128)a[1]*b[4];
+  t  = __builtin_addcl(a1b4, a0b4>>64,  0, &c0);
+  o0 = __builtin_addcl(o0, t,  0, &c1);
+  u128 a2b4 = (u128)a[2]*b[4];
+  t  = __builtin_addcl(a2b4, a1b4>>64, c0, &c0);
+  o1 = __builtin_addcl(o1, t, c1, &c1);
+  u128 a3b4 = (u128)a[3]*b[4];
+  t  = __builtin_addcl(a3b4, a2b4>>64, c0, &c0);
+  o2 = __builtin_addcl(o2, t, c1, &c1);
+  u128 a4b4 = (u128)a[4]*b[4];
+  t  = __builtin_addcl(a4b4, a3b4>>64, c0, &c0);
+  o3 = __builtin_addcl(o3, t, c1, &c1);
+  o4 = __builtin_addcl(a4b4>>64,    0, c0, &c0);
+  o4 = __builtin_addcl(o4, 0, c1, &c1);
+
+  o[0] = o0;
+  o[1] = o1;
+  o[2] = o2;
+  o[3] = o3;
+  o[4] = o4;
+}
+
+static inline void mhu5u2u5(u5x64 o, const u2x64 b, const u5x64 a){
+  u64 c0, c1, t, o0, o1, o2, o3, o4;
+  u128 a1b0 = (u128)a[1]*b[0];
+  u128 a2b0 = (u128)a[2]*b[0];
+  u128 a3b0 = (u128)a[3]*b[0];
+  u128 a4b0 = (u128)a[4]*b[0];
+
+  o0  = __builtin_addcl(a2b0, a1b0>>64,  0, &c0);
+  o1  = __builtin_addcl(a3b0, a2b0>>64, c0, &c0);
+  o2  = __builtin_addcl(a4b0, a3b0>>64, c0, &c0);
+  o3  = __builtin_addcl(   0, a4b0>>64, c0, &c0);
+
+  u128 a0b1 = (u128)a[0]*b[1];
+  u128 a1b1 = (u128)a[1]*b[1];
+  u128 a2b1 = (u128)a[2]*b[1];
+  u128 a3b1 = (u128)a[3]*b[1];
+  u128 a4b1 = (u128)a[4]*b[1];
+
+  t  = __builtin_addcl(a1b1, a0b1>>64,  0, &c0);
+  o0  = __builtin_addcl( o0,        t,  0, &c1);
+
+  t  = __builtin_addcl(a2b1, a1b1>>64, c0, &c0);
+  o1  = __builtin_addcl( o1,        t, c1, &c1);
+
+  t  = __builtin_addcl(a3b1, a2b1>>64, c0, &c0);
+  o2  = __builtin_addcl( o2,        t, c1, &c1);
+
+  t  = __builtin_addcl(a4b1, a3b1>>64, c0, &c0);
+  o3  = __builtin_addcl( o3,        t, c1, &c1);
+
+  t  = __builtin_addcl(   0, a4b1>>64, c0, &c0);
+  o4  = __builtin_addcl(  0,        t, c1, &c1);
+
+  o[0] = o0;
+  o[1] = o1;
+  o[2] = o2;
+  o[3] = o3;
+  o[4] = o4;
+}
+
+static inline void mhu5u1u5(u5x64 o, u64 b0, const u5x64 a){
+  u64 c0;
+  u128 a0b0 = (u128)a[0]*b0;
+  u128 a1b0 = (u128)a[1]*b0;
+  u128 a2b0 = (u128)a[2]*b0;
+  u128 a3b0 = (u128)a[3]*b0;
+  u128 a4b0 = (u128)a[4]*b0;
+
+  o[0]  = __builtin_addcl(a1b0, a0b0>>64,  0, &c0);
+  o[1]  = __builtin_addcl(a2b0, a1b0>>64, c0, &c0);
+  o[2]  = __builtin_addcl(a3b0, a2b0>>64, c0, &c0);
+  o[3]  = __builtin_addcl(a4b0, a3b0>>64, c0, &c0);
+  o[4]  = __builtin_addcl(   0, a4b0>>64, c0, &c0);
+}
+
+static void shrn(int, u64*, int);
+
+static void shln(int n, u64 *a, int k){
+  if(__builtin_expect(k<0, 0)){
+    shrn(n,a,-k);
+  } else {
+    int off = k>>6;
+    u64 *dst = a + n - 1, *src = dst - off;
+    if(__builtin_expect(src >= a, 1)){
+      int s = k&63, q = ~k&63;
+      u64 c = *src--;
+      while(__builtin_expect(src >= a, 1)){
+	u64 nt = *src--;
+	*dst-- = c<<s|nt>>1>>q;
+	c = nt;
+      }
+      *dst-- = c<<s;
+    }
+    while(__builtin_expect(dst >= a, 0)) *dst-- = 0;
+  }
+}
+
+static void shrn(int n, u64 *a, int k){
+  if(__builtin_expect(k<0, 0)){
+    shln(n,a,-k);
+  } else {
+    int off = k>>6;
+    u64 *src = a + off, *dst = a, *aend = a + n;
+    if(__builtin_expect(src < aend, 1)){
+      u64 c = *src++;
+      int s = k&63;
+      if(__builtin_expect(s, 1)){
+	int q = -k&63;
+	while(__builtin_expect(src < aend, 1)){
+	  u64 nt = *src++;
+	  *dst++ = c>>s|nt<<q;
+	  c = nt;
+	}
+	*dst++ = c>>s;
+      } else {
+	while(__builtin_expect(src < aend, 1)){
+	  u64 nt = *src++;
+	  *dst++ = c;
+	  c = nt;
+	}
+	*dst++ = c;
+      }
+    }
+    while(__builtin_expect(dst < aend, 0)) *dst++ = 0;
+  }
+}
+
+static inline u128 uq(const u64 *c){
+  return (u128)c[1]<<64|c[0];
+}
+
+// unsigned 5x64-bit approximate square
+static inline void sqrhu5(u5x64 o, const u5x64 a){
+  u64 c0, c1, o0, o1, o2, o3, o4, t;
+  u128 a4a0 = (u128)a[4]*a[0];
+  u128 a3a1 = (u128)a[3]*a[1];
+  o0  = __builtin_addcl(a4a0>>64, a3a1>>64,   0, &c0);
+  o1  = c0;
+  u128 a4a1 = (u128)a[4]*a[1];
+  u128 a3a2 = (u128)a[3]*a[2];
+  t   = __builtin_addcl(a4a1, a3a2,   0, &c1);
+  o0  = __builtin_addcl( o0, t,   c0, &c0);
+  t   = __builtin_addcl(a4a1>>64, a3a2>>64,  c1, &c1);
+  o1  = __builtin_addcl( o1, t,   c0, &c0);
+  u128 a4a2 = (u128)a[4]*a[2];
+  o1  = __builtin_addcl( o1, a4a2,   c0, &c0);
+  u128 a4a3 = (u128)a[4]*a[3];
+  t   = __builtin_addcl(a4a3, a4a2>>64,   c1, &c1);
+  o2  = __builtin_addcl( 0, t,   c0, &c0);
+  o3  = __builtin_addcl( 0, a4a3>>64,   c1, &c1);
+
+  o0  = __builtin_addcl(o0, o0,  0, &c0);
+  o1  = __builtin_addcl(o1, o1, c0, &c0);
+  o2  = __builtin_addcl(o2, o2, c0, &c0);
+  o3  = __builtin_addcl(o3, o3, c0, &c0);
+  o4  = c0;
+
+  u128 a2a2 = (u128)a[2]*a[2];
+  u128 a3a3 = (u128)a[3]*a[3];
+  u128 a4a4 = (u128)a[4]*a[4];
+  o[0]  = __builtin_addcl(o0, a2a2>>64,   0, &c0);
+  o[1]  = __builtin_addcl(o1,     a3a3,  c0, &c0);
+  o[2]  = __builtin_addcl(o2, a3a3>>64,  c0, &c0);
+  o[3]  = __builtin_addcl(o3,     a4a4,  c0, &c0);
+  o[4]  = __builtin_addcl(o4, a4a4>>64,  c0, &c0);
+}
+
+// unsigned 4x64-bit approximate square
+static inline void sqrhu4(u4x64 o, const u4x64 a){
+  u64 c0, o0, o1, o2, o3;
+  u128 a2a1 = (u128)a[2]*a[1];
+  u128 a3a0 = (u128)a[3]*a[0];
+  u128 a3a1 = (u128)a[3]*a[1];
+  u128 a3a2 = (u128)a[3]*a[2];
+
+  o0  = __builtin_addcl(a3a1, a3a0>>64,  0, &c0);
+  o1  = __builtin_addcl(a3a2, a3a1>>64, c0, &c0);
+  o2  = __builtin_addcl(   0, a3a2>>64, c0, &c0);
+
+  o0  = __builtin_addcl(o0, a2a1>>64,  0, &c0);
+  o1  = __builtin_addcl(o1,        0, c0, &c0);
+  o2  = __builtin_addcl(o2,        0, c0, &c0);
+
+  o0  = __builtin_addcl(o0, o0,  0, &c0);
+  o1  = __builtin_addcl(o1, o1, c0, &c0);
+  o2  = __builtin_addcl(o2, o2, c0, &c0);
+  o3  = c0;
+
+  u128 a2a2 = (u128)a[2]*a[2];
+  u128 a3a3 = (u128)a[3]*a[3];
+  o[0]  = __builtin_addcl(o0,     a2a2,   0, &c0);
+  o[1]  = __builtin_addcl(o1, a2a2>>64,  c0, &c0);
+  o[2]  = __builtin_addcl(o2,     a3a3,  c0, &c0);
+  o[3]  = __builtin_addcl(o3, a3a3>>64,  c0, &c0);
+}
+
+// unsigned 2x64-bit approximate square
+static inline void sqrhu2(u2x64 o, const u2x64 a){
+  u128 a1a0 = (u128)a[1]*a[0];
+  u128 a1a1 = (u128)a[1]*a[1];
+  a1a1 += a1a0>>63;
+  o[0]  = a1a1;
+  o[1]  = a1a1>>64;
+}
+
+static inline __float128 reinterpret_u128_as_f128(u128 t){
+#if defined(__SSE4_1__) && !defined(__clang__)
+  // put u128 into xmm register
+  __m128i m = {0, 0};
+  m = _mm_insert_epi64 (m, t, 0);
+  m = _mm_insert_epi64 (m, t>>64, 1);
+  __float128 r;
+  asm("": "=x"(r): "0"(m));
+  return r;
+#else
+  b128u128_u u = {.a = t};
+  return u.f;
+#endif
+}
+
+static inline u128 reinterpret_f128_as_u128(__float128 z){
+#if defined(__SSE4_1__) && !defined(__clang__)
+  __m128i t;
+  asm("" : "=x" (t) :"0" (z));
+  u64 h = _mm_extract_epi64(t, 1);
+  u64 l = _mm_extract_epi64(t, 0);
+  return ((u128)h<<64)|l;
+#else
+  b128u128_u u = {.f = z};
+  return u.a;
+#endif
+}
+
+// get full square of unsigned 128 bit argument
+static inline void sqrU(u4x64 o, const u2x64 x){
+  u128 p10 = (u128)x[1]*x[0];
+  u64 c, p10x = p10>>127; p10 <<= 1;
+  u128 p00 = (u128)x[0]*x[0];
+  u128 p11 = (u128)x[1]*x[1];
+  o[0] = p00;
+  o[1] = __builtin_addcl(p00>>64, p10, 0, &c);
+  o[2] = __builtin_addcl(p10>>64, p11, c, &c);
+  o[3] = __builtin_addcl(p11>>64, p10x, c, &c);
+}
+
+// get appoximate high part of unsigned 128 bit squaring
+static inline u128 sqrhU(u128 _a){
+  b128u128_u a, a10, a11;
+  a.a = _a;
+  a10.a = (u128)a.b[1]*a.b[0];
+  a10.a >>= 63;
+  a11.a = (u128)a.b[1]*a.b[1];
+  a11.a += a10.a;
+  return a11.a;
+}
+
+// get high part of signed 64x64 bit multiplication
+static inline i64 mhii(i64 x, i64 y){
+  return ((i128)x*y)>>64;
+}
+
+// get high 128 bit part of (unsigned 128)x(signed 128) bit
+// multiplication with sign mask
+static inline i128 mhUIm(u128 _a, i128 _b, u64 mask){
+  b128u128_u sub; sub.a = _a;
+  sub.b[0] &= mask;
+  sub.b[1] &= mask;
+  return mhUU(_a,_b) - sub.a;
+}
+
+// get high 128 bit part of (unsigned 128)x(signed 128) bit
+// multiplication
+static inline i128 mhIU(i128 _b, u128 _a){
+  return mhUIm(_a,_b,(u64)(_b>>127));
+}
+
+// 0 - ordinary number, 1 -- infinity, 2 -- snan, 3 -- qnan
+static inline char getclass(u128 x){
+  u64 xh = x>>64, xl = x;
+  int t = xh>>32 | !!(xh<<32|xl);
+  return (t>=0x7fff<<16) + (t>=(0x7fff<<16)+1) + (t>=(0x7fff8<<12));
+}
+
+// for low precision approxmation use 64x64->64 bit multiplication
+static inline u64 rsqrt9(u64 m){
+  static const unsigned c[][4] = {
+    {0xffffffff, 0xfffff780, 0xbff55815, 0x9bb5b6e7}, {0xfc0bd889, 0xfa1d6e7d, 0xb8a95a89, 0x938bf8f0},
+    {0xf82ec882, 0xf473bea9, 0xb1bf4705, 0x8bed0079}, {0xf467f280, 0xeefff2a1, 0xab309d4a, 0x84cdb431},
+    {0xf0b6848c, 0xe9bf46f4, 0xa4f76232, 0x7e24037b}, {0xed19b75e, 0xe4af2628, 0x9f0e1340, 0x77e6ca62},
+    {0xe990cdad, 0xdfcd2521, 0x996f9b96, 0x720db8df}, {0xe61b138e, 0xdb16ffde, 0x94174a00, 0x6c913cff},
+    {0xe2b7dddf, 0xd68a967b, 0x8f00c812, 0x676a6f92}, {0xdf6689b7, 0xd225ea80, 0x8a281226, 0x62930308},
+    {0xdc267bea, 0xcde71c63, 0x8589702c, 0x5e05343e}, {0xd8f7208e, 0xc9cc6948, 0x81216f2e, 0x59bbbcf8},
+    {0xd5d7ea91, 0xc5d428ee, 0x7cecdb76, 0x55b1c7d6}, {0xd2c8534e, 0xc1fccbc9, 0x78e8bb45, 0x51e2e592},
+    {0xcfc7da32, 0xbe44d94a, 0x75124a0a, 0x4e4b0369}, {0xccd6045f, 0xbaaaee41, 0x7166f40f, 0x4ae66284},
+    {0xc9f25c5c, 0xb72dbb69, 0x6de45288, 0x47b19045}, {0xc71c71c7, 0xb3cc040f, 0x6a882804, 0x44a95f5f},
+    {0xc453d90f, 0xb0849cd4, 0x67505d2a, 0x41cae1a0}, {0xc1982b2e, 0xad566a85, 0x643afdc8, 0x3f13625c},
+    {0xbee9056f, 0xaa406113, 0x6146361f, 0x3c806169}, {0xbc46092e, 0xa7418293, 0x5e70506d, 0x3a0f8e8e},
+    {0xb9aedba5, 0xa458de58, 0x5bb7b2b1, 0x37bec572}, {0xb72325b7, 0xa1859022, 0x591adc9a, 0x358c09e2},
+    {0xb4a293c2, 0x9ec6bf52, 0x569865a7, 0x33758476}, {0xb22cd56d, 0x9c1b9e36, 0x542efb6a, 0x31797f8a},
+    {0xafc19d86, 0x9983695c, 0x51dd5ffb, 0x2f96647a}, {0xad60a1d1, 0x96fd66f7, 0x4fa2687c, 0x2dcab91f},
+    {0xab099ae9, 0x9488e64b, 0x4d7cfbc9, 0x2c151d8a}, {0xa8bc441a, 0x92253f20, 0x4b6c1139, 0x2a7449ef},
+    {0xa6785b42, 0x8fd1d14a, 0x496eaf82, 0x28e70cc3}, {0xa43da0ae, 0x8d8e042a, 0x4783eba7, 0x276c4900},
+    {0xa20bd701, 0x8b594648, 0x45aae80a, 0x2602f493}, {0x9fe2c315, 0x89330ce4, 0x43e2d382, 0x24aa16ec},
+    {0x9dc22be4, 0x871ad399, 0x422ae88c, 0x2360c7af}, {0x9ba9da6c, 0x85101c05, 0x40826c88, 0x22262d7b},
+    {0x99999999, 0x83126d70, 0x3ee8af07, 0x20f97cd2}, {0x97913630, 0x81215480, 0x3d5d0922, 0x1fd9f714},
+    {0x95907eb8, 0x7f3c62ef, 0x3bdedce0, 0x1ec6e994}, {0x93974369, 0x7d632f45, 0x3a6d94a9, 0x1dbfacbb},
+    {0x91a55615, 0x7b955498, 0x3908a2be, 0x1cc3a33b}, {0x8fba8a1c, 0x79d2724e, 0x37af80bf, 0x1bd23960},
+    {0x8dd6b456, 0x781a2be4, 0x3661af39, 0x1aeae458}, {0x8bf9ab07, 0x766c28ba, 0x351eb539, 0x1a0d21a2},
+    {0x8a2345cc, 0x74c813dd, 0x33e61feb, 0x19387676}, {0x88535d90, 0x732d9bdc, 0x32b7823a, 0x186c6f3e},
+    {0x8689cc7e, 0x719c7297, 0x3192747d, 0x17a89f21}, {0x84c66df1, 0x70144d19, 0x30769424, 0x16ec9f89},
+    {0x83091e6a, 0x6e94e36c, 0x2f63836f, 0x16380fbf}, {0x8151bb87, 0x6d1df079, 0x2e58e925, 0x158a9484},
+    {0x7fa023f1, 0x6baf31de, 0x2d567053, 0x14e3d7ba}, {0x7df43758, 0x6a4867d3, 0x2c5bc811, 0x1443880e},
+    {0x7c4dd664, 0x68e95508, 0x2b68a346, 0x13a958ab}, {0x7aace2b0, 0x6791be86, 0x2a7cb871, 0x131500ee},
+    {0x79113ebc, 0x66416b95, 0x2997c17a, 0x12863c29}, {0x777acde8, 0x64f825a1, 0x28b97b82, 0x11fcc95c},
+    {0x75e9746a, 0x63b5b822, 0x27e1a6b4, 0x11786b03}, {0x745d1746, 0x6279f081, 0x2710061d, 0x10f8e6da},
+    {0x72d59c46, 0x61449e06, 0x26445f86, 0x107e05ac}, {0x7152e9f4, 0x601591be, 0x257e7b4d, 0x10079327},
+    {0x6fd4e793, 0x5eec9e6b, 0x24be2445, 0x0f955da9}, {0x6e5b7d16, 0x5dc9986e, 0x24032795, 0x0f273620},
+    {0x6ce6931d, 0x5cac55b7, 0x234d5496, 0x0ebcefdb}, {0x6b7612ec, 0x5b94adb2, 0x229c7cbc, 0x0e56606e},
+  };
+  // The range [1,2] is splitted into 64 equal sub-ranges and the
+  // reciprocal square root is approximated by a cubic polynomial by
+  // the minimax method in each subrange. The approximation accuracy
+  // fits into 32-33 bits and thus it is natural to round
+  // coefficients into 32 bit. The constant coefficient can be
+  // rounded to 33 bits since the most significant bit is always 1
+  // and implicitly assumed in the table.
+  u64 indx = m>>58; // subrange index
+  u64 c3 = c[indx][3], c0 = c[indx][0], c1 = c[indx][1], c2 = c[indx][2];
+  c0 <<= 31; // to 64 bit with the space for the implicit bit
+  c0 |= 1ull<<63; // add implicit bit
+  c1 <<= 25; // to 64 bit format
+  u64 d = (m<<6)>>32; // local coordinate in the subrange [0, 2^32]
+  u64 d2 = ((u64)(d*d))>>32; // square of the local coordinate
+  u64 re = c0 + (d2*c2>>13); // even part of the polynomial (positive)
+  u64 ro = d*((c1 + ((d2*c3)>>19))>>26)>>6; // odd part of the polynomial (negative)
+  u64 r = re - ro; // maximal error < 1.55e-10 and it is less than 2^-32
+  // Newton-Raphson first order step to improve accuracy of the result to almost 64 bits
+  // r1 = r0 - r0*(r0^2*x - 1)/2
+  u64 r2 = mhuu(r,r);
+  i64 h = mhuu(m,r2) + r2; // h = r0^2*x - 1
+  i64 hr = mhii(h,r>>1); // r0*h/2
+  r -= hr;
+  if(__builtin_expect(!r, 0)) r--; // adjust in the unlucky case x~1
+  return r;
+}
+
+// rounded sin(pi/2/72*j) in format prepared for the range reduction
+static const short sth[] = {
+  11476, 9429, 8096, 7384, 6672, 6053, 5699, 5346, 4995, 4645, 4297,
+  4023, 3851, 3680, 3510, 3342, 3174, 3009, 2844, 2681, 2520, 2361,
+  2203, 2048, 1894, 1742, 1592, 1445, 1299, 1157, 1016, 878, 742, 609,
+  479, 351, 226, 104, -31, -263, -490, -711, -925, -1133, -1335,
+  -1531, -1719, -1901, -2105, -2442, -2765, -3074, -3369, -3650,
+  -3917, -4240, -4715, -5159, -5574, -5959, -6484, -7134, -7722,
+  -8306, -9238, -10046, -11220, -12394, -14139, -16488, -20584
+};
+
+// rounded sin(pi/2/72*j)
+static const unsigned pth[] = {
+  0, 0xb2c0, 0x16560, 0x21800, 0x2ca00, 0x37c00, 0x42d80, 0x4de80,
+  0x58f00, 0x63e80, 0x6ed80, 0x79b80, 0x84900, 0x8f500, 0x9a000,
+  0xa4a00, 0xaf200, 0xb9a00, 0xc3f00, 0xce400, 0xd8700, 0xe2800,
+  0xec700, 0xf6500, 0x100000, 0x109a00, 0x113200, 0x11c800, 0x125b00,
+  0x12ed00, 0x137b00, 0x140800, 0x149200, 0x151a00, 0x159f00,
+  0x162100, 0x16a100, 0x171e00, 0x179800, 0x180f80, 0x188380,
+  0x18f500, 0x196380, 0x19ce80, 0x1a3680, 0x1a9b80, 0x1afd80,
+  0x1b5b80, 0x1bb680, 0x1c0e40, 0x1c6280, 0x1cb340, 0x1d0080,
+  0x1d4a40, 0x1d9080, 0x1dd340, 0x1e1200, 0x1e4d60, 0x1e84e0,
+  0x1eb8c0, 0x1ee8e0, 0x1f1540, 0x1f3de0, 0x1f62a0, 0x1f8390,
+  0x1fa0b0, 0x1fb9f0, 0x1fcf50, 0x1fe0d4, 0x1fee76, 0x1ff834,
+  0x1ffe0d};
+
+// sqrt(1-pth[j]^2)
+static const u5x64 cth[] = {
+  {0, 0, 0, 0, 0},
+  {0x64d23d92f9ea2771, 0x6d047db3a6e206a7, 0x2953c428c9d7bc56, 0xfb0f1838d5a3a8da, 0xfff06594451d279d},
+  {0xe3080aa3bd169d0c, 0x4054eae9456537db, 0x9e5833eae773bc87, 0x6f49ccb466446b89, 0xffc19bc9271a05b3},
+  {0x00912c8144374c85, 0x309a44ddae7556ce, 0xc319285201c58b56, 0x3a246e54beb8dac9, 0xff73917b77aa5c47},
+  {0x6a7360619e7edb23, 0x0b11b912de529986, 0x5a6995a8cc7d5eac, 0x552a6d7261223cc4, 0xff069a0439cbe651},
+  {0x238522ea64680061, 0xf079215ebcd5ca36, 0x290de5267799873e, 0xcab4f035a6bfa060, 0xfe7a55701a8697b0},
+  {0x7a92124309b60ef2, 0x4b9dd14818169efc, 0x040ba2edca526f4e, 0xac4772d0d4932b9b, 0xfdcf16b94b0b442e},
+  {0x30ff410c35a4b64d, 0xd1d820652a9bc4c6, 0x6d055dc0a4c09600, 0xb4aab1b03d022116, 0xfd04e2530bcbd671},
+  {0x03aedba8702f81c3, 0x96da5af0d3ea2f8b, 0xca571fb2cbdee5b9, 0x17c0bd0e66183953, 0xfc1bb125286c39d8},
+  {0xfb91abaebc934604, 0xce94d1434f07a0a1, 0x068284240ceeae19, 0x5e9a55955f4b097f, 0xfb143c17bdcc996d},
+  {0xab794690d17636d8, 0xc8e308f9bd76c0e2, 0x15fddd7233c65eed, 0xdb301a162cf8115d, 0xf9edc73d6c923555},
+  {0x593fea054c7f450e, 0x6b0aa37cffc886a5, 0xd8e480c9ebb134e1, 0x287dce6a9f8ea2ac, 0xf8a922ae090b0799},
+  {0x251fef9c8bb46028, 0x493c5f39729df2a1, 0xc745b46aca55d0e8, 0x2062f831fa08f4af, 0xf7454c2c7d12b97a},
+  {0xff1ffe460bd9c836, 0xb16e3e5300ab04b0, 0xcc500109643b1f25, 0x1bf03e7ae9dd3a2a, 0xf5c455407155fe59},
+  {0x4606e3f3b69b5b9f, 0xaf57d7aca36b7036, 0x23dc96105c0b9d9b, 0x0e73cd55dd020b9f, 0xf4253c1c1a1ae532},
+  {0x3e9033c3d73b8ba0, 0x36a1f12dab4107b3, 0xe2bf1fc80065cf4b, 0x067308deced752e6, 0xf267ed62f8b7c795},
+  {0xdc78f0c65249d290, 0x3da244d00c619d0d, 0xd5109661f43e9ecd, 0x70a15831a61bca6b, 0xf08f329d05a331b0},
+  {0x2e799ef643386021, 0xf50e2c1a3600d3ad, 0x828f074191858249, 0x4f6a116da6359a61, 0xee953e620e55df7b},
+  {0xf59cf516cfc8aef3, 0x3994459558477033, 0xcfbcad100d166a9e, 0x6632028b37ff16ad, 0xec832dd8f9584e23},
+  {0x8993bed4bc91f71b, 0x2d156655d9d43f98, 0x7386f1c67cf345e5, 0xd03960687c6a9efe, 0xea4f644f48136890},
+  {0x6c1be9d31d8598fe, 0x0bbc7599cc98b839, 0x1b0cb81a981ed38d, 0x74401bc33d3f4f33, 0xe800632c0e1d2f2c},
+  {0xd77e840a65911d5a, 0x0409ada21048c2b1, 0x54c0567f7377993b, 0xb61bea5c37779619, 0xe59668e019f1e288},
+  {0xdf264c217da2460f, 0x4310bc9fc7837821, 0xa5cb92ab27280ab6, 0x03513aa71030fbb2, 0xe311a97671f44f1c},
+  {0x8ee20e415370de4e, 0xb85f2ea14495bf6f, 0xa12912f50e813792, 0x0f451e45046e7646, 0xe06dea9a80d1fdf6},
+  {0x2485e7ecaf78aedf, 0x639053243722d371, 0x92ec1a6629ed23cc, 0x92ba16b83c5c1dc4, 0xddb3d742c265539d},
+  {0x7d45353940ee462b, 0x81cfccf2da1a22d6, 0x4db6039c8f8f6015, 0x83992b6bb6c89121, 0xdada7cc9882f1832},
+  {0xb0de57772eac59f6, 0x855009022ef97eb9, 0x8549b723bab4be2d, 0x27e229b54b803697, 0xd7e6403e36d2f1f7},
+  {0xe6c36c5ad24b30c1, 0x5258a95fc94e2fb8, 0x63aea18a41e1bf81, 0x2a16383f5c4d5062, 0xd4d7154f370bbe07},
+  {0x4f980d926321df45, 0xad92bc366eaf4837, 0x360b41691ba7a5f0, 0x010bd7d48ab25527, 0xd1b27b4ae9008ef2},
+  {0xb53f05eae4761ab3, 0x5636614d38c536c1, 0x9cfea8981156d5dd, 0x0bb008a15e850cec, 0xce6d5666b787ca77},
+  {0x80638f93f4a2c269, 0x1dcdbcdbbcf14233, 0xae4218b2749a67be, 0x69d2608c3b73e12f, 0xcb190ae896231bce},
+  {0xe516cefc6347a5e9, 0x9684ba1ed4646c7a, 0x5f831bdef11f9bbc, 0xc6158124a4ef775f, 0xc7a3b782716d38c8},
+  {0x8f005279faa6880d, 0x890f8c878e5f7df9, 0x3485668a4e6e9637, 0xcf01d7d5779f0507, 0xc419953003b5c74b},
+  {0x744fe29890f407f9, 0x6f46175fab644dfc, 0xd9330605ec9b4e0a, 0xa322920e8bd7accf, 0xc07416e77d712462},
+  {0xab325fd93ce9b6b8, 0x57c460f1a312c3dd, 0x0fcf1122ee32b17c, 0x892c26b0bcfacc8d, 0xbcba10b0d8770ed2},
+  {0xcef1e69c4eadb8b3, 0x7f131158279ff4d7, 0x4e6ba5183b584705, 0x8fcd4c453517e8ba, 0xb8ebe30ed9fac186},
+  {0x3745f18539bf8772, 0x2cee4ab653475e6e, 0xc28307bea98bb0e7, 0x5cbc46ee3d37b72d, 0xb501e65acbad5ad8},
+  {0xf4c3a3a64ddafd51, 0x5e65313f078e13ab, 0xe6ba3e11cdb88afb, 0xf74e3a8ab016619f, 0xb103b40770404b83},
+  {0x539c48de71a3cc8e, 0x7f208cb9376741f7, 0xa22a23cb0d6b1468, 0x3fd4750afb3804bb, 0xacf1860da3cfd826},
+  {0xbc5eb21dc1786f2d, 0xcaf9195f5c2505ba, 0xf402f48b30c4df2f, 0x4987496d863e1e7c, 0xa8c6fae0bbd09645},
+  {0x61f8e4beffcf379f, 0x758e5ddd22563b4f, 0x80d42d484f061220, 0xfbc0967b24f94966, 0xa48d1e8d86992cdc},
+  {0xcdf0fca2bcbaff85, 0x201f9ee54d8615fa, 0x7a56fc977f0d0e4c, 0x754bb974869014d6, 0xa03aa9d87a93f00d},
+  {0xcae22303aeaf6595, 0xe7b53a3891af1ae5, 0x6de54e5c6a03779d, 0x6cf567b89889fef8, 0x9bd425459273d285},
+  {0x9831e7542d85d7ea, 0x611013ca24685535, 0xa3724e71c24123d7, 0xb849ff7aea680179, 0x975eea2b65a9847e},
+  {0x101a86b895c7d937, 0xe88c06711a5ab702, 0xfd217ba2d78129ec, 0x20b672429fb3d1dd, 0x92d5d4e3fc1f9cbd},
+  {0x4d91c0b5749d4914, 0x8ed80817147623b6, 0xb90bd29f73f58752, 0x5ff44c46ffccf7f3, 0x8e38a46bdb3b3d12},
+  {0x2efea8ce593572c2, 0xf37f1d4704fb5c49, 0xf4c2e89353ada913, 0xedbf03f73c1d3162, 0x8986f9b6c7132cff},
+  {0x35b06cbf85f84fbb, 0xbf788966cdcd56b0, 0x91e498b6c64670dc, 0xf6e11dfe5f762e4d, 0x84cd81e775b4c098},
+  {0x539ba47e0b57d2de, 0x974b441dfa650168, 0xa477f58bc7c8dc47, 0x29dd7114d81c96bf, 0x7fffb96fec8ce447},
+  {0x3d5bcfe7068c0ff1, 0x5016bbcd4ef1b8e7, 0x6f1857955007a55c, 0x98ea27d884420256, 0x7b208eaab0b94056},
+  {0x846ef313e2e0bf68, 0xabfac2142052bc6c, 0x8496c1983f214586, 0xe132acebbd5846b8, 0x7633823fd4eeef51},
+  {0x03681a2fcb57c1e9, 0x999fd17f45cc07f3, 0x411f4be11fd95eb2, 0xa206ce1148e4933c, 0x7138b866dbf2205c},
+  {0x701d2b27adfe0fb8, 0x239f4fe8463aee07, 0xe0b2bb9935920222, 0x5d94ac1eeb7461f9, 0x6c3040ff7ae4f3d5},
+  {0x064f259d5d960d10, 0xb194cf34ff2bf070, 0x5f46977eac6f5a5c, 0x4367583037f40763, 0x671a12bd2092f0e6},
+  {0x739008a332539b2b, 0x34d36b62e94d21ec, 0xf32753bd933f314c, 0x9a57aae41393eb49, 0x61f604a26e818217},
+  {0x4cda609f93951dc0, 0xe4f6c5ba31b5c6ed, 0x4fa0c524c392182a, 0x37df71c28f1de586, 0x5cc3c513b7fdb337},
+  {0x9a01a8613fd798eb, 0x266e72c3de2e292e, 0x59fec1c23334cf3a, 0x2e578575cc9228df, 0x578dcbb6628e3c6f},
+  {0x1f1a07c6d6b6adcd, 0x1eb9dc19b8598724, 0xd9ab93ace24809dc, 0x05dab10687beb878, 0x5246f2e8fd06b80b},
+  {0xb8a6a56a834058eb, 0xe60a200e3eb8678a, 0xe50f6f2cd1d3aace, 0xedb16a84844fc0a7, 0x4cfa66f577d9eaf3},
+  {0x69aab942d6b77874, 0x9d6df99ad27e5270, 0x80152267d988b733, 0xdbe4096c369e089e, 0x47a24816dd512c95},
+  {0x0550f19403d41e0a, 0xbb071ead370af5ff, 0xb9b5812340f07744, 0x64f8889a905e2862, 0x4241a5c4a8543894},
+  {0xacd334aee8e9e8a3, 0x92d46ccf664aa8e9, 0x9d79c6111152cb8a, 0x4b40d1af34812df0, 0x3cd8779db76341cd},
+  {0x0403e507d395ba75, 0x4c8823c7ba7c9380, 0x0a03c989401a778b, 0x14849e09356ec1dc, 0x37667d4c98bfbccb},
+  {0x657bb80e7a20116a, 0xa79b3d94f1414a71, 0x86ab887459d6023c, 0x602a110d5bf3bfc0, 0x31f02728a1820184},
+  {0x531dfb48ce58358d, 0xe827b8eac551e9ee, 0x1b75725ed755aa4a, 0xc588e51fb5f4fd50, 0x2c736b07088a07ba},
+  {0x90c4aa84e4598669, 0x7dd80f90a7af46ad, 0xa23d2ad47df691ab, 0x4e35d5f602d9b24d, 0x26efff9c8eff17d3},
+  {0x06b8ea90e4449667, 0x3b72f4405f272c6f, 0xe689513157c5339a, 0xa73888a873793997, 0x2168e05fb8858700},
+  {0xc343b6652a5c735a, 0x18fae9a2c9f7cf27, 0x7e0c3ca1daac2e97, 0xbb8233abbcf0c73a, 0x1bde7b65ebd95dd2},
+  {0x3097e3126b116bd9, 0x35782cb810ce1724, 0x5ca4cd631e80444d, 0xd2eff3545c8a56c1, 0x164fbb9bd36b968c},
+  {0xe12e48b0cf8a0b8e, 0x402a65318c77466e, 0xfffbc69461af1af2, 0x0d511d6a919beca2, 0x10be2e7affde1a24},
+  {0xed8e7549e2530cad, 0x419a20b85f378012, 0x4d48fe6abd0a9a0e, 0x40b937dae10995f7, 0x0b2a9f7bd1a4e3f7},
+  {0x0ccf7c9e0c0fe38a, 0xf496f2cb6c0dc6ca, 0x5c67a95d27203004, 0x87e16185128e709b, 0x059591109ebd190a},
+};
+
+static const char ind[] = {
+  70, 70, 70, 70, 70, 70, 70, 70, 70, 70, 70, 70, 70, 70, 70, 70, 70,
+  70, 70, 70, 70, 70, 70, 70, 70, 70, 70, 70, 70, 70, 70, 70, 69, 69,
+  69, 69, 69, 69, 69, 69, 69, 69, 69, 69, 69, 69, 69, 69, 69, 69, 68,
+  68, 68, 68, 68, 68, 68, 68, 68, 68, 68, 68, 68, 68, 67, 67, 67, 67,
+  67, 67, 67, 67, 67, 66, 66, 66, 66, 66, 66, 66, 66, 66, 65, 65, 65,
+  65, 65, 65, 64, 64, 64, 64, 64, 64, 64, 64, 63, 63, 63, 63, 62, 62,
+  62, 62, 62, 61, 61, 61, 61, 61, 60, 60, 60, 60, 59, 59, 59, 58, 58,
+  58, 57, 57, 57, 57, 56, 56, 56, 55, 55, 55, 54, 54, 53, 53, 52, 52,
+  51, 51, 51, 50, 50, 49, 49, 49, 48, 48, 47, 46, 46, 45, 44, 44, 43,
+  42, 42, 41, 41, 40, 39, 39, 38, 37, 36, 35, 34, 33, 32, 31, 30, 30,
+  29, 28, 27, 26, 25, 24, 24, 23, 22, 21, 20, 19, 19, 18, 17, 16, 16,
+  15, 14, 13, 13, 12, 11, 11, 10, 10, 10, 9, 9, 9, 8, 8, 7, 7, 7, 6,
+  6, 6, 5, 5, 5, 5, 5, 4, 4, 4, 4, 4, 3, 3, 3, 3, 3, 3, 2, 2, 2, 2, 2,
+  2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+  0, 0, 0, 0, 0, 0
+};
+
+// range reduction based on the first 64 bits of a quad precision number 0<x<1
+static inline u64 jget(u64 x){
+  u64 z = (0x3ffful<<48) - x;
+  u64 mz = z<<16;
+  long e = z>>48;
+  long nz = __builtin_clzll(mz)*(e==0);
+  mz <<= nz + (e==0);
+  e -= nz;
+  long lz = (e<<4|mz>>60) + 161;
+  lz *= (lz>=0);
+  long j = ind[lz&0xff]*(lz<256);
+  long tz = e<<11|mz>>53;
+  return j + (tz<sth[j]);
+}
+
+// phi0[j] = asin(pth[j]);
+static const u6x64 phi0[] = {
+  {0, 0, 0, 0, 0},
+  {0x98ee01dc297ef137, 0x833839e554b92130, 0x0a35967bc3749afb, 0x09800df8ddc2a5e2, 0x016587438f269b93},
+  {0xcfec743ac824b7b9, 0x66ec76eb4fb09df3, 0x5265df8b7c3f33c1, 0xdbf35587e9e2cd87, 0x02cafa166dc09244},
+  {0xd9ea018b49a9a7ac, 0x2e80d2fd5768e869, 0x7f990060e27ca191, 0xacfb3347cdab5663, 0x0430c42ffb6051ae},
+  {0x5a7d59fe33fbd45c, 0xfac32e4e4b697d19, 0x14a12d811a08c9d1, 0xa458339e940758e1, 0x0595d06ea0a22010},
+  {0xbc86efe2e5f48417, 0x8e3ee3ae76d8513a, 0x640a9fc17520d677, 0xb5cab3f8d569e3b5, 0x06fb8b520dddc5be},
+  {0xb768418745f28dd9, 0x787494c4af664176, 0xbef4267e62a7f37b, 0x3b5e3b804feb82b8, 0x08611f97ec71f4d0},
+  {0x1568e021e2ba7c88, 0x389d69e8437f8a69, 0xdd1382a0d543b01a, 0x496cf2cedfaae306, 0x09c6b8bdd13f755e},
+  {0xd981fe8928879085, 0xca5329c38c2cf11b, 0x868a81770bf58deb, 0x9b9c832d762e0355, 0x0b2c82a5715a2540},
+  {0x803682d986d5d261, 0xb4845f3eefebbbad, 0x600541ff7c2ecceb, 0xbcafd279b45b8783, 0x0c91a4c2050c21ab},
+  {0xd48a7991528086ac, 0x24911228dfca1969, 0xa86d3f15c0c947ae, 0x910e90af3cd12b01, 0x0df74ef328432b11},
+  {0xc94f05bb785212ba, 0xed4dd3fe4e1a18f8, 0xc8ba7d4bbf0dd556, 0xfbac51efb6caa9ee, 0x0f5ca782c5497407},
+  {0x6774ecd16dbef24d, 0x5c455230e3e27926, 0x22479a62d912a3bc, 0xe7c0193f47088dff, 0x10c2e217f6ce32d4},
+  {0x065dc6d152815c75, 0xf04a70b98dd4a723, 0xcbdbb25e22f5f0bb, 0xdf4937856b85a07e, 0x1228197097350eb6},
+  {0xe9f602011b282870, 0xe82bd25b373ed1ad, 0x8a4dc661188d900b, 0xf6444858ac431981, 0x138d81148233691b},
+  {0x8fea4147ae4dc654, 0x98cf4ab5bfef3e64, 0xe4a1c1562fca8d98, 0xf0368df5f848a51d, 0x14f345fb14d06d08},
+  {0x38d72d4e6735e238, 0x7a2d62272a639ab7, 0xa612c8dc05aeca56, 0x39aadf69fd05412f, 0x16577574c736f822},
+  {0x8b0a7170caea9d5b, 0x27c1cf7c1a06fa14, 0x02069a770726ca5e, 0x7c4f696ede5fa314, 0x17be7c689b29a551},
+  {0x7932d250fdc19ae3, 0xd23bc7e1175b5ba7, 0xec29fc6fd46e189f, 0x88b15e01adf30d3a, 0x19221b18a2b52525},
+  {0x4123f1d8054542c2, 0x45ee3add846d2f88, 0x93f2249af814dad5, 0xfc147c180f97b340, 0x1a88f3ec0c7019e8},
+  {0x2f5534f59b39f35c, 0x6f6a9ab389dc2e64, 0xf6b8e5b0d1afdc91, 0xb4b3f8775f0ba4af, 0x1beee124e5606f4a},
+  {0xab6580dffc5cad8f, 0xbd7036041b733567, 0x5cb33945d1250ab6, 0x1218f911043d7131, 0x1d540811073115d0},
+  {0x066aa0a3134c137e, 0x59c6c881ab04c92d, 0x9e482027d47ee788, 0xd49d73f1d94d5abf, 0x1eb88e86a05e1646},
+  {0x44c6d7e7bf534b9c, 0xb06417cd6f4b50c4, 0xea20eca3a5ba0bb9, 0xfac469c187134857, 0x201ee316b08cad79},
+  {0x62e1ac14425e00d0, 0x55ac9fc65f2def30, 0xdc2b0d016c66a213, 0xcb7665c1eacf5a22, 0x2182a4705ae6cb08},
+  {0xa9b283dac596b605, 0x5fa4861e7ef2b865, 0x25b5e8f0c4f84141, 0x312668a01c646d4b, 0x22e89368619cc920},
+  {0x1870eef39e4d7560, 0x268dfff2754d4cf9, 0x72e8040d7d970a1b, 0x714ad8d90d614cae, 0x244e9391c2c115b7},
+  {0x4aa29cb31acb8056, 0x0bf09c95910a22e1, 0xb94dbede99a3fb07, 0xd047ce796631eca9, 0x25b4d25453036018},
+  {0xe3ba19c8732cb2ff, 0x85c23d5ca072439d, 0x468f8bb315059a40, 0xed7e66087d1bd175, 0x27190e2b73a92c06},
+  {0x3dabe71847949223, 0x68a8213d4d431f91, 0x62f05cf2b3bd2710, 0x1bfe511df99c3f24, 0x28805177276dca59},
+  {0x5ed25eca0b62e3d2, 0x414b4ddbedbba46c, 0x806bc58f612ad096, 0x19542ac43ea8cca6, 0x29e35e91b23af2e6},
+  {0x461794962913e34a, 0x2173dec430ab5f19, 0xd86f9df8a8a1ca1e, 0x62a1e34bd1046ac2, 0x2b49dc99a7f107ed},
+  {0xf6894f18599bbbc3, 0xfb42ed3f8092e674, 0x211376f5bd95b6f5, 0xa9954fa4b6a3ae67, 0x2caeee56ee9d76e1},
+  {0xe1237822d72fcc91, 0x6234f9e5fc87cd58, 0x5b561e852695a9c9, 0x27a4ac920cc2d485, 0x2e1555560bf870eb},
+  {0x5a660506d1ac44f0, 0x52288e69a1a6979a, 0x0a8fd342fa39186a, 0xfdd3cc3e53529c31, 0x2f7a9c03b2c9f414},
+  {0x9ca4a66d94f7ce98, 0xb3cc7b754ea110e8, 0x6b2742ff360ad0bb, 0x96adb5df0884220e, 0x30deddc5b3a10ac0},
+  {0x22d5717c16f70066, 0xbb740e701f426b4d, 0x198b66d49a271ae4, 0x75723e247890af33, 0x32450ab8886790d8},
+  {0x20f779a2a364ada1, 0xbcefde528ed4843d, 0xd9b7ad636a26a2e8, 0xbe1d44dc6c140104, 0x33aa8c3852d78cb5},
+  {0xaa78df837ecdaa97, 0xbf01603890538307, 0xb39c7da573049b6e, 0xc6ee2586ef7102a6, 0x350f83805f4ef2af},
+  {0xa7101ffddaa0205c, 0xff482e8b905c3c42, 0x4c352411efcd1e54, 0x30f588c99bd199af, 0x367597d00863a4fb},
+  {0x7a50c80306a1cd12, 0xc0beba6e79bc66c3, 0x0b9754ce987c0953, 0x35799f82fec17b96, 0x37d9efa5cc792058},
+  {0x4d761df6ad0e0a02, 0x81d32ddacd6bd035, 0x0c237487d06f011d, 0x3e97f3b619f12766, 0x393fc6a828bc5faa},
+  {0x35744cb31feda78c, 0xd51b2aca2e438689, 0x32c841d8e6ceb86b, 0x3f3f5a212b953136, 0x3aa5c5acf37c6120},
+  {0x4d79cc59a565f332, 0x71eb5d0518dcfb61, 0xbb4691922423833a, 0xa8a0d67b5ebbd438, 0x3c0a6ce619afbecb},
+  {0x3e21fefaf4e7140a, 0x96f46153925cfd2b, 0x571dbd2a4f2e3c52, 0xb842564cf08621a5, 0x3d6f8890a605b281},
+  {0x7037e96476e27ea1, 0x5ae2b816bd048fed, 0x46fbc0ca0a5d9263, 0xf4b457396c3272d5, 0x3ed5515839e243bf},
+  {0xf02ac2ca018f9a65, 0x71db3636d8da33bd, 0xd1d6436a7360244d, 0xc419fbcd61c58ae0, 0x403c068f4ca7dbdd},
+  {0xcce44f4b72496de5, 0xea09489358b99d4d, 0xb9280b5910db4a70, 0x3ad95a2158116eb8, 0x41a01481bb07e89a},
+  {0x48ac724ef318d23f, 0xd36005c2ff58849e, 0x684395b19458a3b0, 0x9edeca515af1ba99, 0x43055d3f5a3843d4},
+  {0xfb4d7cd146ac9f2b, 0x0ed324adafcce8e9, 0x464d45780c8593e4, 0xdfeabcb1886c91d4, 0x446b298c55709426},
+  {0xc97d68a97bd20cfd, 0xd44c71bb9a79af37, 0x4994a20c53d8f77c, 0x5551bdfb954de51b, 0x45d0a2d83402852e},
+  {0xcf5871a6c11bec80, 0x9241921b8781c8d4, 0xfcd58a061f918cf1, 0xd4d48175b1f60999, 0x4735ecbb7bd74be0},
+  {0xb4823503bd4fd9a8, 0xdc192068bd8d2bc4, 0xcbdb56aef0689e07, 0xdd64738731cda11e, 0x489b2f2ff7bcda66},
+  {0xb5ded72e06d41eb6, 0x9bb89696d9b7cf1c, 0xf77c9570b899c4e3, 0x5aa0e883a6eda943, 0x4a0097d052ed8c05},
+  {0xddab3b3a2e3bf5de, 0x2bec239ff875f670, 0xd57d42bb37fb8edb, 0x53ed5991b032a4eb, 0x4b665b83154c8657},
+  {0xac519e91759a2e1c, 0xd0fdf1d8cd84553b, 0x6c24cfb240db06c4, 0xc968f12d1de4d873, 0x4cccb8bf370f638f},
+  {0x130889f279315788, 0x1ef803a4227bd644, 0x2121c9968755f6f1, 0xf2bad5ef685bea78, 0x4e310dfc7e411046},
+  {0xa03656fa715c3883, 0xa9270b7ef8e88ebd, 0x550185ce80dcfecd, 0xf6847065ac7a7aa7, 0x4f970b141dce2e81},
+  {0xeb9f36e3478889d3, 0x4a12abd75df1ecf7, 0x7c7ce1fdb58d81ef, 0x84bdaa4b7ad370d0, 0x50fbe3e30fc44f66},
+  {0x627d4f62ad02808b, 0xb1ea7aeab262dcf3, 0xac10241f5263e947, 0x7957fee19a27ce76, 0x526151167a260453},
+  {0xe37f0c6934d62608, 0x7843ef917ade64ae, 0x544a56f63dad0a95, 0x3c5874fd8b1301f7, 0x53c6b020be9fee8a},
+  {0x6b2fe8011bb87592, 0xc5b7cbc38fac26d4, 0x8db1f8c41a6cd9a0, 0xd7ae3d436b49cc09, 0x552c2e92d3f0c173},
+  {0x6049d7609958e256, 0xfc8faaed4664aafe, 0xe62f657b1840e73e, 0x6e785810dc18495a, 0x5692079b0ac56864},
+  {0xdea0822e6fcabf5a, 0xa67be1a0aeba5974, 0x80df10c66d9ad721, 0xaee8e2ff604ca4e4, 0x57f74397d7972d8c},
+  {0x2e99fd9004895bf1, 0x2c5e4e04ffa77d51, 0x198ecdeb7689d1da, 0x31c2c2097ded5b97, 0x595c947041a83282},
+  {0x9d8e6e05caef973a, 0xa21b7978644cb042, 0xe37cc7b3f5012feb, 0xe32d4cbd3f985c39, 0x5ac237b03135c03f},
+  {0xa01b33e03be0fe10, 0x34bf31294901fcf5, 0xc9b777070ae86e75, 0xe115be404cca90a2, 0x5c27975ad61bcaf3},
+  {0x9c4590074292f22c, 0xdae52ba7e450bddc, 0x5da1f017c5607398, 0x3b9a27849aaf3833, 0x5d8cc3ba42653852},
+  {0xbbe9d89670b64e34, 0xc116904da21277ea, 0xcb425146d6b5bc8e, 0x674e52bc09754ee7, 0x5ef22e0c33796cf3},
+  {0xaf80d291228261ab, 0x33363d9bc6f82152, 0x1e11556bff0ca51f, 0x28a52e68b4dc3983, 0x60579dc248eaa1c8},
+  {0x67c35a55fff73990, 0x6519388c3c9a5119, 0x93de87eefa765ee5, 0xf3ba200c61a03d53, 0x61bd0b619139c80d},
+  {0x77ccbaef553260bd, 0xb5d407d4703f9679, 0x30c0c549e83434bf, 0x571f0d28a5438d2c, 0x632281cb0a93a34e},
+  {0x28a5043cc71a026f, 0x0105df531d89cd91, 0x948127044533e63a, 0x62633145c06e0e68, 0x6487ed5110b4611a},
+};
+
+static inline int omx2v3(u4x64 X2, int s, const u2x64 x);
+// approximated normalize 1-x^2
+static inline int omx2v2(u4x64 X2, int s, const u2x64 x){
+  sqrU(X2, x);
+  X2[0] = X2[1]<<1<<(~s&63)|X2[0]>>s;
+  X2[0] = ~X2[0];
+  X2[1] = X2[2]<<1<<(~s&63)|X2[1]>>s;
+  X2[1] = ~X2[1];
+  X2[2] = X2[3]<<1<<(~s&63)|X2[2]>>s;
+  X2[2] = ~X2[2];
+  X2[3] = X2[3]>>s;
+  X2[3] = ~X2[3];
+  int e = 1;
+  if(__builtin_expect(X2[3], 1)){
+    int lk = __builtin_clzll(X2[3]);
+    X2[3] = X2[3]<<lk|X2[2]>>1>>(~lk&63);
+    X2[2] = X2[2]<<lk|X2[1]>>1>>(~lk&63);
+    X2[1] = X2[1]<<lk|X2[0]>>1>>(~lk&63);
+    X2[0] = X2[0]<<lk;
+    e += lk;
+  } else {
+    u64 c;
+    X2[0] = __builtin_addcl(X2[0],1,0,&c);
+    X2[1] = __builtin_addcl(X2[1],0,c,&c);
+    X2[2] = __builtin_addcl(X2[2],0,c,&c);
+    int lk = __builtin_clzll(X2[2]);
+    X2[3] = X2[2]<<lk|X2[1]>>1>>(~lk&63);
+    X2[2] = X2[1]<<lk|X2[0]>>1>>(~lk&63);
+    X2[1] = X2[0]<<lk;
+    X2[0] = 0;
+    e += lk+64;
+  }
+  return e;
+}
+
+static __float128 as_acosq_accurate(__float128);
+
+__float128 cr_acosq(__float128 x) {
+  static const u64 c[][2] = {
+    {0xaaaaaaaaaaaaaaa9ul, 0xaaaaaaaaaaaaaaaaul},
+    {0x333333333333337aul, 0x0013333333333333ul},
+    {0xb6db6db6db6dae36ul, 0x000002db6db6db6dul},
+    {0x71c71c71c71cfc25ul, 0x000000007c71c71cul},
+    {0x2e8ba2e8ba29804eul, 0x000000000016e8baul},
+    {0x3b13b13b13ce93b6ul, 0x0000000000000471ul},
+    {0xe4cccccccc5f2a5aul, 0x0000000000000000ul},
+    {0x002f50f0f1f806dcul, 0x0000000000000000ul},
+    {0x000009fef0fec73aul, 0x0000000000000000ul},
+    {0x0000000227286573ul, 0x0000000000000000ul},
+  };
+
+  unsigned flagp = _mm_getcsr(), oflagp = flagp, rm = flagp&_MM_ROUND_MASK;
+  const u64 smsk = 1ll<<63;
+  b128u128_u X = {.a = reinterpret_f128_as_u128(x)};
+  i64 xsgn = X.b[1]&smsk;
+  X.b[1] &= ~smsk; // strip sign
+  long xn = X.b[1]>>48;
+  if(__builtin_expect(xn>=0x3fff,0)){ // |x|>=1, Inf, NaN
+    if(X.b[0]==0&&X.b[1]==(0x3ffful<<48)){
+      if(xsgn){
+	X.f = 0x1.921fb54442d18469898cc51701b8p+1q;
+	X.a += (rm != _MM_ROUND_NEAREST)*(rm==_MM_ROUND_UP);
+	flagp |= FE_INEXACT;
+      } else {
+	X.a = 0;
+      }
+      // set inexact flag only if it is not set before
+      if(__builtin_expect(oflagp!=flagp, 0)) _mm_setcsr(flagp);
+      __float128 res = reinterpret_u128_as_f128(X.a); // put into xmm register
+      return res;
+    } else {
+      char xnan = getclass(X.a);
+      if(xnan==2){ // signaling NAN
+	flagp |= FE_INVALID;
+	if(__builtin_expect(oflagp!=flagp, 0)) _mm_setcsr(flagp);
+	return __builtin_nanf128("acosq");
+      } else if(xnan==3) {//quiet NAN
+	return x; // propagate nan
+      }
+#ifdef CORE_MATH_SUPPORT_ERRNO
+      errno = EDOM;
+#endif
+      flagp |= FE_INVALID;
+      // set invalid flag only if it is not set before
+      if(__builtin_expect(oflagp!=flagp, 0)) _mm_setcsr(flagp);
+      return __builtin_nanf128("acosq");
+    }
+  }
+  u64 j = jget(X.b[1]); // range reduction
+  X.b[1] |= 1ul<<48;
+  X.a <<= 15;
+  u128 t = X.a;
+  int nz = 0x3fff-xn;
+  u3x64 xc;
+  if(__builtin_expect(j, 1)){
+    u4x64 X2;
+    int e = omx2v2(X2, 2*nz-2, X.b);
+    const u64 rsqrt_2[] = {~0ull,0xb504f333f9de6484ull}; // 2^64/sqrt(2)
+    u64 rx = X2[3]<<1|X2[2]>>63, r = rsqrt9(rx);
+    r = (u128)r*rsqrt_2[e&1]>>64;
+    u3x64 SX; mhu3uu3(SX, r, X2+1);
+    u3x64 H; mhu3uu3(H, r, SX);
+    const int koff = 2, rkoff = 64-koff;
+    H[0] = H[0]>>koff|H[1]<<rkoff;
+    H[1] = H[1]>>koff|H[2]<<rkoff;
+    long hh = H[1];
+    u64 h2 = mhii(hh,hh);
+    h2 += h2>>1;
+    u128 Hh = (u128)H[1]<<64|H[0];
+    int lk = (e&1)+koff, rk = (64-lk)&63;
+    u128 H2 = (u128)(h2>>rk)<<64|h2<<lk;
+    Hh -= H2;
+    i128 D = mhIU(Hh, (u128)SX[2]<<64|SX[1]);
+    u64 D3s = D>>127;
+    u3x64 D3 = {D, D>>64, D3s};
+    D3[2] = D3[2]<<lk|D3[1]>>rk;
+    D3[1] = D3[1]<<lk|D3[0]>>rk;
+    D3[0] = D3[0]<<lk;
+
+    subu3u3u3(SX,SX,D3);
+    if(xsgn || j<71){
+      X.a >>= nz&63;
+      mhu3u2u3(xc, X.b, cth[j]+2);
+      u64 sj = pth[j];
+      int sp = 43-(e>>1);
+      if(__builtin_expect(sp>=0, 1)){
+	sj <<= sp;
+	mhu3uu3(SX, sj, SX);
+      } else {
+	mhu3uu3(SX, sj, SX);
+	rk = -sp&63;
+	lk = sp&63;
+	SX[0] = SX[0]>>rk|SX[1]<<lk;
+	SX[1] = SX[1]>>rk|SX[2]<<lk;
+	SX[2] = SX[2]>>rk;
+      }
+      subu3u3u3(xc, xc, SX);
+      nz = __builtin_clzll(xc[2]);
+      t = (u128)(xc[2]<<nz|xc[1]>>(-nz&63))<<64|(xc[1]<<nz|xc[0]>>(-nz&63));
+    } else {
+      nz = e>>1;
+      xc[0] = SX[0];
+      xc[1] = SX[1];
+      xc[2] = SX[2];
+      t = (u128)SX[2]<<64|SX[1];
+    }
+  } else {
+    if(__builtin_expect(nz<64, 1)){
+      xc[0] = X.b[0]<<(-nz&63);
+      xc[1] = X.b[1]<<(-nz&63)|X.b[0]>>nz;
+      xc[2] = X.b[1]>>nz;
+    } else if(nz<128) {
+      xc[0] = X.b[1]<<1<<(~nz&63)|X.b[0]>>(nz&63);
+      xc[1] = X.b[1]>>(nz&63);
+      xc[2] = 0;
+    } else if(nz<192) {
+      xc[0] = X.b[1]>>(nz&63);
+      xc[2] = xc[1] = 0;
+    } else {
+      xc[2] = xc[1] = xc[0] = 0;
+    }
+  }
+  u128 t2 = sqrhU(t);
+  u128 t3 = mhUU(t,t2);
+  int s2 = 2*(nz-6);
+  if(__builtin_expect(s2<128, 1))
+    t2 >>= s2;
+  else
+    t2 = 0;
+
+  u64 t2h = t2>>64, fl = c[9][0];
+  fl = c[8][0] + mhuu(t2h, fl);
+  fl = c[7][0] + mhuu(t2h, fl);
+  fl = c[6][0] + mhuu(t2h, fl);
+  u128 f = (u128)c[5][1]<<64|(c[5][0] + mhuu(t2h, fl));
+  int i = 5;
+  while(i>0) f = uq(c[--i]) + mhUU(t2, f);
+  f = mhUU(t3, f);
+  u3x64 f3;
+  f3[2] = f>>64;
+  f3[1] = f;
+
+  b128u128_u v,dv;
+  u64 rnd;
+  if(xsgn || j<71){
+    int sf = 3*nz + 1;
+    if(__builtin_expect(sf<64, 1)){
+      f3[0] = f3[1]<<(-sf&63);
+      f3[1] = f3[1]>>sf|f3[2]<<(-sf&63);
+      f3[2] = f3[2]>>sf;
+    } else if(sf<128){
+      f3[0] = f3[1]>>(sf&63)|f3[2]<<1<<(~sf&63);
+      f3[1] = f3[2]>>(sf&63);
+      f3[2] = 0;
+    } else if(sf<192){
+      f3[0] = f3[2]>>(sf&63);
+      f3[2] = f3[1] = 0;
+    } else {
+      f3[2] = f3[1] = f3[0] = 0;
+    }
+
+    xc[0] = xc[0]>>1|xc[1]<<63;
+    xc[1] = xc[1]>>1|xc[2]<<63;
+    xc[2] = xc[2]>>1;
+    addu3u3u3(xc, xc, phi0[j]+2);
+    addu3u3u3(xc, xc, f3);
+
+    xsgn >>= 63;
+    xc[0] ^= xsgn;
+    xc[1] ^= xsgn;
+    xc[2] ^= xsgn;
+    subu3u3u3(xc, phi0[72]+2, xc);
+
+    int k = __builtin_clzll(xc[2]);
+    rnd = (xc[1]>>(14-k))&1;
+    xn = 0x3fff - k;
+
+    sf = sf>60?60:sf;
+    u64 Eps = 1ul<<(69-sf);
+    u128 msk = (u128)(~0ul >> (k + 0x31 + (rm == _MM_ROUND_NEAREST)))<<64|~0ul;
+    u128 tl = (u128)xc[1]<<64|xc[0];
+    tl += Eps;
+    tl &= msk;
+    if(tl < 2*Eps) return as_acosq_accurate(x);
+    v.b[0] = xc[1]>>(15-k)|xc[2]<<(49+k);
+    v.b[1] = xc[2]>>(15-k);
+  } else {
+    int sf = 2*nz;
+    if(__builtin_expect(sf<64,1)){
+      f3[0] = f3[1]<<(-sf&63);
+      f3[1] = f3[1]>>sf|f3[2]<<(-sf&63);
+      f3[2] = f3[2]>>sf;
+    } else {
+      f3[0] = f3[1]>>(sf&63)|f3[2]<<1<<(~sf&63);
+      f3[1] = f3[2]>>(sf&63);
+      f3[2] = 0;
+    }
+    addu3u3u3(xc,xc,f3);
+
+    v.b[0] = xc[1];
+    v.b[1] = xc[2];
+    int k = v.b[1]>>63;
+    rnd = (v.b[0]>>(13+k))&1;
+    v.a >>= 14+k;
+    v.b[1] &= ~0ul>>16;
+    xn += k-nz;
+
+    sf = sf>60?60:sf;
+    u64 Eps = 1ul<<(68-sf);
+    u128 msk = (u128)(~0ul >> (k + 0x31 + (rm == _MM_ROUND_NEAREST)))<<64|~0ul;
+    u128 tl = (u128)xc[1]<<64|xc[0];
+    tl += Eps;
+    tl &= msk;
+    if(tl < 2*Eps) return as_acosq_accurate(x);
+  }
+  if(__builtin_expect(rm != _MM_ROUND_NEAREST, 0))
+    rnd = (rm==_MM_ROUND_UP);
+  dv.b[0] = rnd;
+  dv.b[1] = (u64)xn<<48;
+  v.a += dv.a;
+  flagp |= FE_INEXACT;
+  // set inexact flag only if it is not set before
+  if(__builtin_expect(oflagp!=flagp, 0)) _mm_setcsr(flagp);
+  __float128 res = reinterpret_u128_as_f128(v.a); // put into xmm register
+  return res;
+}
+
+// full product o = b0*a
+static inline void mu5u1u4(u5x64 o, u64 b0, u4x64 a){
+  u128 a0b0 = (u128)a[0]*b0;
+  u128 a1b0 = (u128)a[1]*b0;
+  u128 a2b0 = (u128)a[2]*b0;
+  u128 a3b0 = (u128)a[3]*b0;
+  u64 c;
+  o[0] = a0b0;
+  o[1] = __builtin_addcl(a1b0, a0b0>>64, 0, &c);
+  o[2] = __builtin_addcl(a2b0, a1b0>>64, c, &c);
+  o[3] = __builtin_addcl(a3b0, a2b0>>64, c, &c);
+  o[4] = __builtin_addcl(   0, a3b0>>64, c, &c);
+}
+
+// full product o = b0*a
+static inline void mu6u1u5(u5x64 o, u64 b0, u4x64 a){
+  u128 a0b0 = (u128)a[0]*b0;
+  u128 a1b0 = (u128)a[1]*b0;
+  u128 a2b0 = (u128)a[2]*b0;
+  u128 a3b0 = (u128)a[3]*b0;
+  u128 a4b0 = (u128)a[4]*b0;
+  u64 c;
+  o[0] = a0b0;
+  o[1] = __builtin_addcl(a1b0, a0b0>>64, 0, &c);
+  o[2] = __builtin_addcl(a2b0, a1b0>>64, c, &c);
+  o[3] = __builtin_addcl(a3b0, a2b0>>64, c, &c);
+  o[4] = __builtin_addcl(a4b0, a3b0>>64, c, &c);
+  o[5] = __builtin_addcl(   0, a4b0>>64, c, &c);
+}
+
+// a *= 3;
+static inline void mu4x3(u4x64 a){
+  u64 c;
+  a[0] = __builtin_addcl(a[0], a[1]<<63|a[0]>>1, 0, &c);
+  a[1] = __builtin_addcl(a[1], a[2]<<63|a[1]>>1, c, &c);
+  a[2] = __builtin_addcl(a[2], a[3]<<63|a[2]>>1, c, &c);
+  a[3] = __builtin_addcl(a[3],          a[3]>>1, c, &c);
+}
+
+// a *= 5;
+static inline void mu3x5(u3x64 a){
+  u64 c;
+  a[0] = __builtin_addcl(a[0], a[1]<<62|a[0]>>2, 0, &c);
+  a[1] = __builtin_addcl(a[1], a[2]<<62|a[1]>>2, c, &c);
+  a[2] = __builtin_addcl(a[2],          a[2]>>2, c, &c);
+}
+
+// exact normalized 1-x^2
+static inline int omx2v3(u4x64 X2, int s, const u2x64 x){
+  sqrU(X2, x);
+  X2[0] = X2[1]<<1<<(~s&63)|X2[0]>>s;
+  X2[1] = X2[2]<<1<<(~s&63)|X2[1]>>s;
+  X2[2] = X2[3]<<1<<(~s&63)|X2[2]>>s;
+  X2[3] = X2[3]>>s;
+  u64 c;
+  X2[0] = __builtin_subcl(0, X2[0], 0, &c);
+  X2[1] = __builtin_subcl(0, X2[1], c, &c);
+  X2[2] = __builtin_subcl(0, X2[2], c, &c);
+  X2[3] = __builtin_subcl(0, X2[3], c, &c);
+  int e = 1;
+  if(__builtin_expect(X2[3], 1)){
+    int lk = __builtin_clzll(X2[3]);
+    X2[3] = X2[3]<<lk|X2[2]>>1>>(~lk&63);
+    X2[2] = X2[2]<<lk|X2[1]>>1>>(~lk&63);
+    X2[1] = X2[1]<<lk|X2[0]>>1>>(~lk&63);
+    X2[0] = X2[0]<<lk;
+    e += lk;
+  } else {
+    int lk = __builtin_clzll(X2[2]);
+    X2[3] = X2[2]<<lk|X2[1]>>1>>(~lk&63);
+    X2[2] = X2[1]<<lk|X2[0]>>1>>(~lk&63);
+    X2[1] = X2[0]<<lk;
+    X2[0] = 0;
+    e += lk+64;
+  }
+  return e;
+}
+
+// sqrt(1 - x^2)
+static int getcos(u5x64 sq, int ex, u2x64 x){
+  u4x64 x2;
+  int e = omx2v3(x2, 2*(ex-1), x);
+  const u64 rsqrt_2[] = {~0ull,0xb504f333f9de6484ull}; // 2^64/sqrt(2)
+  u64 rx = x2[3]<<1|x2[2]>>63, r = rsqrt9(rx);
+  r = (u128)r*rsqrt_2[e&1]>>64;
+  mu5u1u4(sq, r, x2);
+  u6x64 h; mu6u1u5(h, r, sq);
+  shrn(6,h,2);
+  i64 msk = h[4]; msk>>=63;
+  h[4] ^= msk;
+  h[3] ^= msk;
+  h[2] ^= msk;
+  h[1] ^= msk;
+  h[0] ^= msk;
+  u5x64 h2s; sqrhu4(h2s+1,h+1);
+  u2x64 h4s; sqrhu2(h4s,h2s+3);
+  u5x64 h3s; mhu3u3u3(h3s+2, h+2, h2s+2);
+  mu4x3(h2s+1);
+  mu3x5(h3s+2);
+  u128 t4u = (u128)h4s[1]<<64|h4s[0];
+  t4u += (t4u*3>>5);
+  u5x64 t4 = {0,0,0,t4u, t4u>>64};
+
+  h2s[0] = 0;
+  shrn(5,h2s,62-(e&1));
+  h3s[0] = h3s[1] = 0;
+  shrn(5,h3s,59+64-2*(e&1));
+  shrn(5,t4,56+128-3*(e&1));
+
+  if(msk){
+    addu5u5u5(h,h,h2s);
+    addu5u5u5(h,h,h3s);
+    addu5u5u5(h,h,t4);
+  } else {
+    subu5u5u5(h,h,h2s);
+    addu5u5u5(h,h,h3s);
+    subu5u5u5(h,h,t4);
+  }
+
+  mu6u1u5(h, r, h);
+  u5x64 x2l = {0,x2[0],x2[1],x2[2],x2[3]};
+  mhu5u5u5(h,h+1,x2l);
+  shrn(5,h,62-(e&1));
+
+  if(!msk){
+    subu5u5u5(sq,sq,h);
+  } else {
+    addu5u5u5(sq,sq,h);
+  }
+  return e;
+}
+
+static inline void evalpoly(u5x64 f, const u5x64 t2){
+  static const u64 cp[] = {
+    0x1343996b9f42b9f5ul, 0x255e6e351770584dul, 0x00000000000000a3ul, 0x5e2111cba47a2b05ul, 0x000000000005717dul,
+    0xa97f20b758a855cdul, 0x000000002ea1bcc9ul, 0x889c99395996e6ceul, 0x00000190cb77f60cul, 0xc7476c854bade5bful,
+    0x000d8137abd89d89ul, 0x97b4ea2813d93845ul, 0x74f4aa383759f229ul, 0x5abb1888e58be523ul, 0x5f1f6db6db6db6dbul,
+    0x00000000000003f9ul, 0x9a1160a9ab2539ceul, 0xa8ba2e8ba2e8ba2eul, 0x000000000022bdd3ul, 0x72ec43b868c4b3c0ul,
+    0xf7bdef7bdef7bdeful, 0x0000000131683bdeul, 0x4b2852d709bf2295ul, 0x58469ee58469ee58ul, 0x00000a8dd18469eeul,
+    0x2d86e53634cafb09ul, 0x684bda12f684bda1ul, 0x005e0b7684bda12ful, 0x151d85735049738ful, 0xe147ae147ae147aeul,
+    0x4d0c7ae147ae147aul, 0x0000000000000003ul, 0x9ba6f1b2735cae39ul, 0x6f4de9bd37a6f4deul, 0xbd37a6f4de9bd37aul,
+    0x0000000000001df3ul, 0xcf46c00a8ed8a2e2ul, 0x3cf3cf3cf3cf3cf3ul, 0xf3cf3cf3cf3cf3cful, 0x000000000112ef3cul,
+    0x86baeba7afbb9dd6ul, 0xbca1af286bca1af2ul, 0xa1af286bca1af286ul, 0x00000009fef286bcul, 0xe1e21d9d6b73053dul,
+    0xe1e1e1e1e1e1e1e1ul, 0xe1e1e1e1e1e1e1e1ul, 0x00005ea1e1e1e1e1ul, 0x33332cfa4ccaad37ul, 0x3333333333333333ul,
+    0x3333333333333333ul, 0x0393333333333333ul, 0x89d89e04e6327ae5ul, 0xd89d89d89d89d89dul, 0x9d89d89d89d89d89ul,
+    0x89d89d89d89d89d8ul, 0x0000000000000023ul, 0x8ba2e8b369ee2b14ul, 0xe8ba2e8ba2e8ba2eul, 0x2e8ba2e8ba2e8ba2ul,
+    0xa2e8ba2e8ba2e8baul, 0x0000000000016e8bul, 0x8e38e38e78e717bcul, 0x38e38e38e38e38e3ul, 0xe38e38e38e38e38eul,
+    0x8e38e38e38e38e38ul, 0x000000000f8e38e3ul, 0x6db6db6db566fac3ul, 0xb6db6db6db6db6dbul, 0xdb6db6db6db6db6dul,
+    0x6db6db6db6db6db6ul, 0x000000b6db6db6dbul, 0x99999999999e1925ul, 0x9999999999999999ul, 0x9999999999999999ul,
+    0x9999999999999999ul, 0x0009999999999999ul, 0xaaaaaaaaaaaaa521ul, 0xaaaaaaaaaaaaaaaaul, 0xaaaaaaaaaaaaaaaaul,
+    0xaaaaaaaaaaaaaaaaul, 0xaaaaaaaaaaaaaaaaul};
+  const u64 *ck = cp;
+  f[0] = ck[0];
+  mhu1u1u1(f, f, t2 + 4); addu1u1u1(f, ck += 1, f);
+  f[1] = ck[1];
+  mhu2u2u2(f, f, t2 + 3); addu2u2u2(f, ck += 2, f);
+  mhu2u2u2(f, f, t2 + 3); addu2u2u2(f, ck += 2, f);
+  mhu2u2u2(f, f, t2 + 3); addu2u2u2(f, ck += 2, f);
+  mhu2u2u2(f, f, t2 + 3); addu2u2u2(f, ck += 2, f);
+  mhu2u2u2(f, f, t2 + 3); addu2u2u2(f, ck += 2, f);
+  mhu2u2u2(f, f, t2 + 3); addu2u2u2(f, ck += 2, f);
+  f[2] = ck[2];
+  mhu3u3u3(f, f, t2 + 2); addu3u3u3(f, ck += 3, f);
+  mhu3u3u3(f, f, t2 + 2); addu3u3u3(f, ck += 3, f);
+  mhu3u3u3(f, f, t2 + 2); addu3u3u3(f, ck += 3, f);
+  mhu3u3u3(f, f, t2 + 2); addu3u3u3(f, ck += 3, f);
+  mhu3u3u3(f, f, t2 + 2); addu3u3u3(f, ck += 3, f);
+  f[3] = ck[3];
+  mhu4u4u4(f, f, t2 + 1); addu4u4u4(f, ck += 4, f);
+  mhu4u4u4(f, f, t2 + 1); addu4u4u4(f, ck += 4, f);
+  mhu4u4u4(f, f, t2 + 1); addu4u4u4(f, ck += 4, f);
+  mhu4u4u4(f, f, t2 + 1); addu4u4u4(f, ck += 4, f);
+  mhu4u4u4(f, f, t2 + 1); addu4u4u4(f, ck += 4, f);
+  mhu4u4u4(f, f, t2 + 1); addu4u4u4(f, ck += 4, f);
+  f[4] = ck[4];
+  mhu5u5u5(f, f, t2); addu5u5u5(f, ck += 5, f);
+  mhu5u5u5(f, f, t2); addu5u5u5(f, ck += 5, f);
+  mhu5u5u5(f, f, t2); addu5u5u5(f, ck += 5, f);
+  mhu5u5u5(f, f, t2); addu5u5u5(f, ck += 5, f);
+  mhu5u5u5(f, f, t2); addu5u5u5(f, ck += 5, f);
+}
+
+static inline void cpu5(u5x64 o, const u5x64 a){
+  for(int i=0;i<5;i++) o[i] = a[i];
+}
+
+__float128 as_acosq_accurate(__float128 x){
+  unsigned flagp = _mm_getcsr(), oflagp = flagp, rm = flagp&_MM_ROUND_MASK;
+  const u64 smsk = 1ll<<63;
+  b128u128_u X = {.a = reinterpret_f128_as_u128(x)};
+  u64 xsgn = X.b[1]&smsk;
+  X.b[1] &= ~smsk; // strip sign
+  long xn = X.b[1]>>48;
+  u64 j = jget(X.b[1]);
+  X.b[1] |= 1ul<<48;
+  X.a <<= 15;
+  u5x64 t;
+  int nz = 0x3fff-xn;
+  u5x64 xc;
+  if(j){
+    u5x64 sq;
+    int e = getcos(sq, nz, X.b);
+    if((xsgn || j<71)){
+      X.a >>= nz&63;
+      mhu5u2u5(xc, X.b, cth[j]);
+      u64 sj = pth[j];
+      int sp = 43-(e>>1);
+      if(__builtin_expect(sp>=0, 1)) sj <<= sp;
+      mhu5u1u5(sq, sj, sq);
+      if(__builtin_expect(sp<0, 0)) shrn(5,sq,-sp);
+      subu5u5u5(xc, xc, sq);
+      cpu5(t, xc);
+      for(int i=4;i>=0;i--) if(t[i]) {nz = __builtin_clzll(t[i]) + (4-i)*64; break;}
+      shln(5,t,nz);
+    } else {
+      nz = e>>1;
+      cpu5(xc, sq);
+      cpu5(t, sq);
+    }
+  } else {
+    t[0] = t[1] = t[2] =  xc[0] = xc[1] = xc[2] = 0;
+    xc[3] = t[3] = X.b[0];
+    xc[4] = t[4] = X.b[1];
+    shrn(5,xc,nz);
+  }
+
+  u5x64 t2; sqrhu5(t2,t);
+  u5x64 t3; mhu5u5u5(t3,t,t2);
+  int s2 = 2*(nz-6)-1;
+  shrn(5, t2, s2);
+  u5x64 f; evalpoly(f,t2);
+  mhu5u5u5(f, t3, f);
+  b128u128_u v,dv;
+  u64 rnd;
+  if(xsgn || j<71){
+    int sf = 3*nz+1;
+    shrn(5,f,sf);
+    shrn(5,xc,1);
+    addu5u5u5(xc,phi0[j],xc);
+    addu5u5u5(xc,xc,f);
+    if(xsgn){
+      addu5u5u5(xc,phi0[72],xc);
+    } else {
+      subu5u5u5(xc,phi0[72],xc);
+    }
+    int k = __builtin_clzll(xc[4]);
+    rnd = (xc[3]>>(14-k))&1;
+    xn = 0x3fff - k;
+    v.b[0] = xc[3]>>(15-k)|xc[4]<<(49+k);
+    v.b[1] = xc[4]>>(15-k);
+  } else {
+    int sf = 2*nz;
+    shrn(5,f,sf);
+    addu5u5u5(xc,xc,f);
+    v.b[0] = xc[3];
+    v.b[1] = xc[4];
+    int k = v.b[1]>>63;
+    rnd = (v.b[0]>>(13+k))&1;
+    v.a >>= (14+k)&63;
+    xn += k-nz;
+    v.b[1] &= ~0ul>>16;
+  }
+
+  if(__builtin_expect(rm != _MM_ROUND_NEAREST, 0))
+    rnd = (rm==_MM_ROUND_UP);
+  dv.b[0] = rnd;
+  dv.b[1] = (u64)xn<<48;
+  v.a += dv.a;
+  flagp |= FE_INEXACT;
+  // set inexact flag only if it is not set before
+  if(__builtin_expect(oflagp!=flagp, 0)) _mm_setcsr(flagp);
+  __float128 res = reinterpret_u128_as_f128(v.a); // put into xmm register
+  return res;
+}
+
+// somewhat we need to include that for icx and the Intel math library
+extern __float128 __acosq (__float128, __float128);
+
+// acosq is called acosf128 in GNU libc, and __acosq in the Intel math library
+__float128 acosq(__float128 x) {
+#ifdef __INTEL_CLANG_COMPILER
+  return __acosq (x);
+#else
+  return acosf128 (x);
+#endif
+}
