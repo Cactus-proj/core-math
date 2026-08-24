@@ -118,7 +118,7 @@ LOG_FILE="$(mktemp /tmp/core-math.XXXXXX)"
 # trap "rm -f $RANDOMS_FILE $LOG_FILE" 0
 
 f=$1
-# $g is the name in LIBM whuch might differ
+# $g is the name in LIBM which might differ
 # for example cos_bf16 is cosbf16 in LLVM libc
 # we then use CORE_MATH_STD_NAME=cosbf16 LIBM=... ./perf.sh cos_bf16
 g=$f
