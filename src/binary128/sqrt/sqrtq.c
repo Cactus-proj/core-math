@@ -57,15 +57,6 @@ typedef union {
   __float128 f;
 } b128u128_u;
 
-#if (defined(__x86_64__) && (defined(__APPLE__) || defined(_WIN32)))
-static inline __float128 local_nanq(__attribute__((unused)) const char *tagp){
-  b128u128_u u;
-  u.a = ~(u128)0u;
-  return u.f;
-}
-#define __builtin_nanf128(tagp) local_nanq(tagp)
-#endif
-
 // get high part of unsigned 64x64 bit multiplication
 static inline u64 mhuu(u64 _a, u64 _b){
   return ((u128)_a*_b)>>64;
@@ -229,7 +220,11 @@ __float128 cr_sqrtq(__float128 x) {
       errno = EDOM;
 #endif
       feraiseexcept (FE_INVALID);
+#if (defined(_WIN32) || defined(__APPLE__))
+      return 0.0q / 0.0q;
+#else
       return __builtin_nanf128("<0");
+#endif
     } else{
       if(!(u.b[1]&(1ull<<47))) feraiseexcept (FE_INVALID); // complain about the snan argument by the invalid exception
       u.b[1] |= 1ull<<47; // snan -> qnan
@@ -290,6 +285,7 @@ __float128 cr_sqrtq(__float128 x) {
   return reinterpret_u128_as_f128(v.a); // put into xmm register
 }
 
+#ifndef __APPLE__
 // somewhat we need to include that for icx and the Intel math library
 extern __float128 __sqrtq (__float128);
 
@@ -301,3 +297,4 @@ __float128 sqrtq(__float128 x) {
   return sqrtf128 (x);
 #endif
 }
+#endif

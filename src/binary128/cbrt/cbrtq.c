@@ -101,6 +101,13 @@ static inline i128 mhiUm(i64 y, u128 x, i64 m){
   return xy1 - (m&x) + (xy0>>64);
 }
 
+#ifdef _WIN32
+#define ulong unsigned long long
+#define __builtin_addcl __builtin_addcll
+#else
+#define ulong unsigned long
+#endif
+
 // get full product of unsigned 128x128 bit multiplication
 static inline u128 mUU(u128 _a, u128 _b, u128 *t){
   b128u128_u a, b, a1b0, a0b1, a1b1, a0b0;
@@ -114,7 +121,7 @@ static inline u128 mUU(u128 _a, u128 _b, u128 *t){
   //   a1b0
   //   a0b1
   // a1b1
-  unsigned long c;
+  ulong c;
   a0b0.b[1] = __builtin_addcl(a0b0.b[1], a1b0.b[0], 0, &c);
   a1b1.b[0] = __builtin_addcl(a1b1.b[0], a1b0.b[1], c, &c);
   a1b1.b[1] = __builtin_addcl(a1b1.b[1], 0, c, &c);
@@ -289,6 +296,7 @@ __float128 cr_cbrtq(__float128 x){
   return x;
 }
 
+#ifndef __APPLE__
 // somewhat we need to include that for icx and the Intel math library
 extern __float128 __cbrtq (__float128);
 
@@ -300,3 +308,4 @@ __float128 cbrtq(__float128 x) {
   return cbrtf128 (x);
 #endif
 }
+#endif

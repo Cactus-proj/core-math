@@ -37,15 +37,6 @@ SOFTWARE.
 #pragma GCC diagnostic ignored "-Wunknown-pragmas"
 #endif
 
-#if (defined(__x86_64__) && (defined(__APPLE__) || defined(_WIN32)))
-static inline __float128 local_nanq(__attribute__((unused)) const char *tagp){
-  b128u128_u u;
-  u.a = ~(u128)0u;
-  return u.f;
-}
-#define __builtin_nanf128(tagp) local_nanq(tagp)
-#endif
-
 typedef __int128 i128;
 typedef unsigned __int128 u128;
 typedef uint64_t u64;
@@ -100,6 +91,11 @@ static inline u128 mhUU(u128 _a, u128 _b){
   a1b1.a += a0b1.b[1];
   return a1b1.a;
 }
+
+#if (defined(_WIN32) || defined(__APPLE__))
+#define __builtin_addcl __builtin_addcll
+#define __builtin_subcl __builtin_subcll
+#endif
 
 // o = a - b
 static inline void subu2u2u2(u2x64 o, const u2x64 a, const u2x64 b){
@@ -742,7 +738,7 @@ static inline u128 reciprocalU(u128 kd){
   u128 kdh = kd>>64, kdl = (u64)kd;
   u128 n = (u128)1<<127;
   u64 r = n/kdh;
-  if(__builtin_expect(!r,0)) r = ~0ul;
+  if(__builtin_expect(!r,0)) r = ~0ull;
   i128 Hh = kdh*r; u128 Hl = kdl*r;
   Hh += Hl>>64;
   Hh <<= 57;
@@ -877,7 +873,7 @@ __float128 cr_atanq(__float128 x) {
   if(__builtin_expect(xn<0x3fff-57,0)){ // |x|<=0x1p-58
     if(X.a == 0) return x; // x=+/-0 
     X.a -= (rm != _MM_ROUND_NEAREST)*(!!xsgn*(rm==_MM_ROUND_UP) + !xsgn*(rm==_MM_ROUND_DOWN) + (rm==_MM_ROUND_TOWARD_ZERO));
-    if(X.b[1] < 1ul<<48){
+    if(X.b[1] < 1ull<<48){
       flagp |= FE_UNDERFLOW;
 #ifdef CORE_MATH_SUPPORT_ERRNO
       errno = ERANGE; // underflow
@@ -895,7 +891,11 @@ __float128 cr_atanq(__float128 x) {
     if(xnan==2){ // signaling NAN
       flagp |= FE_INVALID;
       if(__builtin_expect(oflagp!=flagp, 0)) _mm_setcsr(flagp);
+#if (defined(_WIN32) || defined(__APPLE__))
+      return 0.0q / 0.0q;
+#else
       return __builtin_nanf128("atanq");
+#endif
     } else if(xnan==3) {//quiet NAN
       return x; // propagate nan
     }
@@ -909,7 +909,7 @@ __float128 cr_atanq(__float128 x) {
     return res;
   }
   X.b[1] &= ~inf;
-  X.b[1] |= 1ul<<48;
+  X.b[1] |= 1ull<<48;
 
   u128 kn, kd;
   int dn;
@@ -941,7 +941,7 @@ __float128 cr_atanq(__float128 x) {
       }
       X.a *= tn[isct];
       X.b[0] = X.b[0]>>e|X.b[1]<<(-e&63);
-      X.b[1] = X.b[1]>>e|1ul<<63;
+      X.b[1] = X.b[1]>>e|1ull<<63;
       kd = X.a;
       dn = e + nzn - 15;
     }
@@ -953,17 +953,17 @@ __float128 cr_atanq(__float128 x) {
       kd = X.a<<15;
       dn = e;
     } else {
-      isct = indh[(X.b[1]^(~0ul>>16)) >> (e+42)];
-      isct += tn[isct+1]*X.b[1] < (1ul<<(63-e));
+      isct = indh[(X.b[1]^(~0ull>>16)) >> (e+42)];
+      isct += tn[isct+1]*X.b[1] < (1ull<<(63-e));
       b128u128_u t = {.a = X.a * tn[isct]};
-      if(__builtin_expect(t.b[1]&(1ul<<(63-e)), 0))
+      if(__builtin_expect(t.b[1]&(1ull<<(63-e)), 0))
       	t.a = X.a * tn[--isct];
       t.b[1] <<= e;
       if(e) t.b[1] |= t.b[0]>>(-e&63);
       t.b[0] <<= e;
       kn = -t.a;
       u64 knh = kn>>64, knl = kn;
-      knh ^= 1ul<<63;
+      knh ^= 1ull<<63;
       int nzn;
       if(__builtin_expect(knh, 1)){
 	nzn = __builtin_clzll(knh);
@@ -993,16 +993,16 @@ __float128 cr_atanq(__float128 x) {
   else
     T2 = 0;
   
-  static const unsigned long c[][2] = {
-    {0xfffffffffffffffful, 0xfffffffffffffffful},
-    {0x555555555555554ful, 0x0015555555555555ul},
-    {0x3333333333332f55ul, 0x0000033333333333ul},
-    {0x49249249249147dful, 0x0000000092492492ul},
-    {0x1c71c71c71a599e3ul, 0x00000000001c71c7ul},
-    {0x745d1745cf00b15ful, 0x00000000000005d1ul},
-    {0x3b13b13af8b70dd8ul, 0x0000000000000001ul},
-    {0x004444439744d102ul, 0x0000000000000000ul},
-    {0x00000f0cb8c66f08ul, 0x0000000000000000ul}
+  static const u64 c[][2] = {
+    {0xffffffffffffffffull, 0xffffffffffffffffull},
+    {0x555555555555554full, 0x0015555555555555ull},
+    {0x3333333333332f55ull, 0x0000033333333333ull},
+    {0x49249249249147dfull, 0x0000000092492492ull},
+    {0x1c71c71c71a599e3ull, 0x00000000001c71c7ull},
+    {0x745d1745cf00b15full, 0x00000000000005d1ull},
+    {0x3b13b13af8b70dd8ull, 0x0000000000000001ull},
+    {0x004444439744d102ull, 0x0000000000000000ull},
+    {0x00000f0cb8c66f08ull, 0x0000000000000000ull}
   };
 
   u64 t2h = T2>>64, fl = c[8][0];
@@ -1030,12 +1030,12 @@ __float128 cr_atanq(__float128 x) {
     int k = __builtin_clzll(f3[2]);
     rnd = (f3[1]>>(14-k))&1;
     u128 t = (u128)f3[1]<<64|f3[0];
-    const u64 eps = 0xca2339c0ebedfa4ul;
+    const u64 eps = 0xca2339c0ebedfa4ull;
     t += eps;
     u64 th = t>>64, tl = t;
-    th &= (1ul<<(15-k))-1;
+    th &= (1ull<<(15-k))-1;
     th ^= (u64)(rm == _MM_ROUND_NEAREST)<<(14-k);
-    if(th==0 && tl<0x194467381d7dbf48ul) return as_atanq_accurate(x);
+    if(th==0 && tl<0x194467381d7dbf48ull) return as_atanq_accurate(x);
     xn = 0x3fff - k;
     v.b[0] = f3[1]>>(15-k)|f3[2]<<(49+k);
     v.b[1] = f3[2]>>(15-k);
@@ -1043,7 +1043,7 @@ __float128 cr_atanq(__float128 x) {
     v.a = f;
     int k = __builtin_clzll(v.b[1]);
     xn = 0x3ffe - dn - k;
-    u64 tl = (v.b[0] + 6) & (~0ul>>(49+k));
+    u64 tl = (v.b[0] + 6) & (~0ull>>(49+k));
     tl ^= (u64)(rm == _MM_ROUND_NEAREST)<<(14-k);
     if(tl<=15) return as_atanq_accurate(x);
     rnd = (v.b[0]>>(14-k))&1;
@@ -1071,7 +1071,7 @@ __float128 as_atanq_accurate(__float128 x){
   X.b[1] &= ~smsk; // strip sign
   int xn = X.b[1]>>48;
   X.b[1] &= ~inf;
-  X.b[1] |= 1ul<<48;
+  X.b[1] |= 1ull<<48;
 
   u128 kn;
   u3x64 kd;
@@ -1082,7 +1082,7 @@ __float128 as_atanq_accurate(__float128 x){
     if(e>7){
       isct = 0;
       kn = X.a<<15;
-      kd[2] = 1ul<<63;
+      kd[2] = 1ull<<63;
       kd[1] = 0;
       kd[0] = 0;
       dn = e;
@@ -1113,7 +1113,7 @@ __float128 as_atanq_accurate(__float128 x){
 	kd[1] = kd[1]>>e|kd[2]<<(-e&63);
 	kd[2] = kd[2]>>e;
       }
-      kd[2] |= 1ul<<63;
+      kd[2] |= 1ull<<63;
       dn = e + nzn - 15;
     }
   } else {
@@ -1127,17 +1127,17 @@ __float128 as_atanq_accurate(__float128 x){
       kd[0] = 0;
       dn = e;
     } else {
-      isct = indh[(X.b[1]^(~0ul>>16)) >> (e+42)];
-      isct += tn[isct+1]*X.b[1] < (1ul<<(63-e));
+      isct = indh[(X.b[1]^(~0ull>>16)) >> (e+42)];
+      isct += tn[isct+1]*X.b[1] < (1ull<<(63-e));
       b128u128_u t = {.a = X.a * tn[isct]};
-      if(__builtin_expect(t.b[1]&(1ul<<(63-e)), 0))
+      if(__builtin_expect(t.b[1]&(1ull<<(63-e)), 0))
       	t.a = X.a * tn[--isct];
       t.b[1] <<= e;
       if(e) t.b[1] |= t.b[0]>>(-e&63);
       t.b[0] <<= e;
       kn = -t.a;
       u64 knh = kn>>64, knl = kn;
-      knh ^= 1ul<<63;
+      knh ^= 1ull<<63;
       int nzn;
       if(__builtin_expect(knh, 1)){
 	nzn = __builtin_clzll(knh);
@@ -1282,6 +1282,7 @@ __float128 as_atanq_accurate(__float128 x){
   return res;
 }
 
+#ifndef __APPLE__
 // somewhat we need to include that for icx and the Intel math library
 extern __float128 __atanq (__float128, __float128);
 
@@ -1293,3 +1294,4 @@ __float128 atanq(__float128 x) {
   return atanf128 (x);
 #endif
 }
+#endif

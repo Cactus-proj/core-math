@@ -89,6 +89,11 @@ static inline u128 __attribute__((always_inline)) mhUU(u128 _a, u128 _b){
   return a1b1.a;
 }
 
+#if (defined(_WIN32) || defined(__APPLE__))
+#define __builtin_addcl __builtin_addcll
+#define __builtin_subcl __builtin_subcll
+#endif
+
 // get high part of unsigned 128 bit squaring
 static inline u128 __attribute__((always_inline)) sqrU(u128 _a){
   b128u128_u a, a00, a01, a11, a10;
@@ -1250,6 +1255,7 @@ __float128 cr_expm1q(__float128 x) {
   return reinterpret_u128_as_f128(res.a); // put into xmm register
 }
 
+#ifndef __APPLE__
 // somewhat we need to include that for icx and the Intel math library
 extern __float128 __expm1q (__float128);
 
@@ -1261,3 +1267,4 @@ __float128 expm1q(__float128 x) {
   return expm1f128 (x);
 #endif
 }
+#endif

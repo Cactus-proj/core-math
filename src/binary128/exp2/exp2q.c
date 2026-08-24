@@ -242,6 +242,10 @@ static inline void __attribute__((always_inline)) arsu3(u3x64 o, int n){
   }
 }
 
+#if (defined(_WIN32) || defined(__APPLE__))
+#define __builtin_addcl __builtin_addcll
+#endif
+
 // o += b
 static inline void addu6u6(u6x64 o, const u6x64 b){
   u64 c;
@@ -626,10 +630,10 @@ static void __attribute__((noinline)) as_exp2q_accurate(int *el, u2x64 m, u128 x
     f[1] = __builtin_addcl(f[1],0,k,&k);
     f[2] = __builtin_addcl(f[2],0,k,&k);
     if(s<64){
-      f[1] &= (1ul<<s)-1;
+      f[1] &= (1ull<<s)-1;
       f[2] = 0;
     } else if(s<128){
-      f[2] &= (1ul<<(s-64))-1;
+      f[2] &= (1ull<<(s-64))-1;
     }
     rndfail = (f[0]<=16) && ((f[1] | f[2]) == 0);
   }
@@ -835,6 +839,7 @@ __float128 cr_exp2q(__float128 x) {
   return reinterpret_u128_as_f128(res.a); // put into xmm register
 }
 
+#ifndef __APPLE__
 // somewhat we need to include that for icx and the Intel math library
 extern __float128 __exp2q (__float128);
 
@@ -846,3 +851,4 @@ __float128 exp2q(__float128 x) {
   return exp2f128 (x);
 #endif
 }
+#endif

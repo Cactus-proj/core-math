@@ -57,15 +57,6 @@ typedef union {
   __float128 f;
 } b128u128_u;
 
-#if (defined(__x86_64__) && (defined(__APPLE__) || defined(_WIN32)))
-static inline __float128 local_nanq(__attribute__((unused)) const char *tagp){
-  b128u128_u u;
-  u.a = ~(u128)0u;
-  return u.f;
-}
-#define __builtin_nanf128(tagp) local_nanq(tagp)
-#endif
-
 static inline i64 mhui(u64 y, i64 x){
   return ((u128)(u64)x*(u128)y>>64) - ((x>>63)&y);
 }
@@ -93,6 +84,13 @@ static inline u128 mhUU(u128 _a, u128 _b){
   return a1b1.a;
 }
 
+#ifdef _WIN32
+#define ulong unsigned long long
+#define __builtin_addcl __builtin_addcll
+#else
+#define ulong unsigned long
+#endif
+
 // get full product of unsigned 128x128 bit multiplication
 static inline u128 mUU(u128 _a, u128 _b, u128 *t){
   b128u128_u a, b, a1b0, a0b1, a1b1, a0b0;
@@ -106,7 +104,7 @@ static inline u128 mUU(u128 _a, u128 _b, u128 *t){
   //   a1b0
   //   a0b1
   // a1b1
-  unsigned long c;
+  ulong c;
   a0b0.b[1] = __builtin_addcl(a0b0.b[1], a1b0.b[0], 0, &c);
   a1b1.b[0] = __builtin_addcl(a1b1.b[0], a1b0.b[1], c, &c);
   a1b1.b[1] = __builtin_addcl(a1b1.b[1], 0, c, &c);
@@ -244,7 +242,11 @@ __float128 cr_rsqrtq(__float128 x){
       errno = EDOM;
 #endif
       feraiseexcept (FE_INVALID);
+#if (defined(_WIN32) || defined(__APPLE__))
+      return 0.0q / 0.0q;
+#else
       return __builtin_nanf128("<0");
+#endif
     } else{
       u.a |= (u128)1<<111; // snan -> qnan
       return u.f; // NaN

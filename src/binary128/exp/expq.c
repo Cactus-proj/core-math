@@ -108,6 +108,10 @@ static inline u128 __attribute__((always_inline)) reinterpret_f128_as_u128(__flo
 #endif
 }
 
+#if (defined(_WIN32) || defined(__APPLE__))
+#define __builtin_addcl __builtin_addcll
+#endif
+
 static void __attribute__((noinline)) mhu7xu2(u7x64 o, const u7x64 a, u128 b){
   u64 b0 = b, b1 = b>>64;
   u128 a0b1 = a[0]*(u128)b1;
@@ -715,10 +719,10 @@ static void __attribute__((noinline)) as_expq_accurate(int *el, u2x64 m, u128 x0
     f[1] = __builtin_addcl(f[1],0,k,&k);
     f[2] = __builtin_addcl(f[2],0,k,&k);
     if(s<64){
-      f[1] &= (1ul<<s)-1;
+      f[1] &= (1ull<<s)-1;
       f[2] = 0;
     } else if(s<128){
-      f[2] &= (1ul<<(s-64))-1;
+      f[2] &= (1ull<<(s-64))-1;
     }
     rndfail = (f[0]<=16) && ((f[1] | f[2]) == 0);
   }
@@ -903,6 +907,7 @@ __float128 cr_expq(__float128 x) {
   return reinterpret_u128_as_f128(res.a); // put into xmm register
 }
 
+#ifndef __APPLE__
 // somewhat we need to include that for icx and the Intel math library
 extern __float128 __expq (__float128);
 
@@ -914,3 +919,4 @@ __float128 expq(__float128 x) {
   return expf128 (x);
 #endif
 }
+#endif

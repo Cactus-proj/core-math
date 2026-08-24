@@ -55,15 +55,6 @@ typedef union {
   __float128 f;
 } b128u128_u;
 
-#if (defined(__x86_64__) && (defined(__APPLE__) || defined(_WIN32)))
-static inline __float128 local_nanq(__attribute__((unused)) const char *tagp){
-  b128u128_u u;
-  u.a = ~(u128)0u;
-  return u.f;
-}
-#define __builtin_nanf128(tagp) local_nanq(tagp)
-#endif
-
 // get high part of unsigned 64x64 bit multiplication
 static inline u64 mhuu(u64 _a, u64 _b){
   return ((u128)_a*_b)>>64;
@@ -95,9 +86,9 @@ static inline u128 sqrhU(u128 _a){
 #ifdef _WIN32
 #define ulong unsigned long long
 #define __builtin_addcl __builtin_addcll
-#else /* !_WIN32 */
+#else
 #define ulong unsigned long
-#endif /* ?_WIN32 */
+#endif
 
 // get full product of unsigned 128x128 bit squaring
 static inline u128 sqrU(u128 _a, u128 *t){
@@ -281,7 +272,11 @@ __float128 cr_hypotq(__float128 x, __float128 y) {
     if(xnan==2||ynan==2){ // signaling NAN
       flagp |= FE_INVALID;
       if(__builtin_expect(oflagp!=flagp, 0)) _mm_setcsr(flagp);
+#if (defined(_WIN32) || defined(__APPLE__))
+      out = 0.0q / 0.0q;
+#else
       out = __builtin_nanf128("hypot");
+#endif
     } else if(xnan+ynan==4) {//quiet NAN
       out = __builtin_inff128(); // hypot(+-inf,qnan) = inf and hypot(qnan, +-inf) = inf
     } else if(xnan==3) {//quiet NAN
@@ -448,6 +443,7 @@ __float128 cr_hypotq(__float128 x, __float128 y) {
   return reinterpret_u128_as_f128(v.a); // put into xmm register
 }
 
+#ifndef __APPLE__
 // somewhat we need to include that for icx and the Intel math library
 extern __float128 __hypotq (__float128, __float128);
 
@@ -459,3 +455,4 @@ __float128 hypotq(__float128 x, __float128 y) {
   return hypotf128 (x, y);
 #endif
 }
+#endif

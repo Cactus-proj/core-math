@@ -67,6 +67,14 @@ static inline u128 __attribute__((always_inline)) mhUU(u128 _a, u128 _b){
   return a1b1.a;
 }
 
+#if (defined(_WIN32) || defined(__APPLE__))
+#define ulong unsigned long long
+#define __builtin_addcl __builtin_addcll
+#define __builtin_subcl __builtin_subcll
+#else
+#define ulong unsigned long
+#endif
+
 static inline u128 __attribute__((always_inline)) mUUp(u128 *t, u128 _a, u128 _b){
   b128u128_u a, b, a1b0, a0b1, a1b1, a0b0;
   a.a = _a;
@@ -75,7 +83,7 @@ static inline u128 __attribute__((always_inline)) mUUp(u128 *t, u128 _a, u128 _b
   a0b1.a = (u128)a.b[0]*b.b[1];
   a1b1.a = (u128)a.b[1]*b.b[1];
   a0b0.a = (u128)a.b[0]*b.b[0];
-  unsigned long c0;
+  ulong c0;
   a0b0.b[1] = __builtin_addcl(a0b0.b[1], a1b0.b[0], 0, &c0);
   a1b1.b[0] = __builtin_addcl(a1b1.b[0], a1b0.b[1], c0, &c0);
   a1b1.b[1] = __builtin_addcl(a1b1.b[1], 0, c0, &c0);
@@ -541,20 +549,20 @@ static inline void rlshft(u3x64 t, int s){
 
 static __float128 as_logq_nearone(b128u128_u x, unsigned flagp){
   static const b128u128_u cp[] = {
-    {.b = {0xfffffffffffffffful, 0x7ffffffffffffffful}},
-    {.b = {0x5555555555555555ul, 0x0000055555555555ul}},
-    {.b = {0xfffffffffffffffdul, 0x00000000003ffffful}},
-    {.b = {0x3333333333333326ul, 0x0000000000000003ul}},
-    {.b = {0x00002aaaaaaaaa84ul, 0x0000000000000000ul}},
-    {.b = {0x000000000249245aul, 0x0000000000000000ul}}
+    {.b = {0xffffffffffffffffull, 0x7fffffffffffffffull}},
+    {.b = {0x5555555555555555ull, 0x0000055555555555ull}},
+    {.b = {0xfffffffffffffffdull, 0x00000000003fffffull}},
+    {.b = {0x3333333333333326ull, 0x0000000000000003ull}},
+    {.b = {0x00002aaaaaaaaa84ull, 0x0000000000000000ull}},
+    {.b = {0x000000000249245aull, 0x0000000000000000ull}}
   };
   static const b128u128_u cn[] = {
-    {.b = {0x0000000000000000ul, 0x8000000000000000ul}},
-    {.b = {0xaaaaaaaaaaaaaaaaul, 0x000002aaaaaaaaaaul}},
-    {.b = {0xfffffffffffffffful, 0x00000000000ffffful}},
-    {.b = {0x6666666666666668ul, 0x0000000000000000ul}},
-    {.b = {0x000002aaaaaaaaa8ul, 0x0000000000000000ul}},
-    {.b = {0x0000000000124926ul, 0x0000000000000000ul}}
+    {.b = {0x0000000000000000ull, 0x8000000000000000ull}},
+    {.b = {0xaaaaaaaaaaaaaaaaull, 0x000002aaaaaaaaaaull}},
+    {.b = {0xffffffffffffffffull, 0x00000000000fffffull}},
+    {.b = {0x6666666666666668ull, 0x0000000000000000ull}},
+    {.b = {0x000002aaaaaaaaa8ull, 0x0000000000000000ull}},
+    {.b = {0x0000000000124926ull, 0x0000000000000000ull}}
   };
   unsigned oflagp = flagp, rm = flagp&_MM_ROUND_MASK;
   u64 tr = rm == _MM_ROUND_NEAREST, crnd = 0;
@@ -644,7 +652,7 @@ static __float128 as_logq_nearone(b128u128_u x, unsigned flagp){
   u64 rnd = (res.b[0]>>14)&1;
   e = 16381-e;
   if(__builtin_expect(crnd, 0)){
-    res.a += 1ul<<13;
+    res.a += 1ull<<13;
     res.a >>= 14;
     rnd = as_logq_refine(e|neg<<15, res.b, x.f);
   } else
@@ -757,12 +765,12 @@ __float128 cr_logq(__float128 x) {
     {0x3acdd4c172d84d84,0xcb4d8326a9902bfb,0x14}, {0x81f0878a8d99e057,0x7cce6daf3f7a4090,0x15}
   };
   static const b128u128_u c[] = {
-    {.b = {0xfffffffffffffffful, 0xfffffffffffffffful}},
-    {.b = {0xfffffffffffffffful, 0x000007fffffffffful}},
-    {.b = {0x5555555555555551ul, 0x0000000000555555ul}},
-    {.b = {0xffffffffffffffeaul, 0x0000000000000003ul}},
-    {.b = {0x00003333333332f7ul, 0x0000000000000000ul}},
-    {.b = {0x0000000002aaaa5eul, 0x0000000000000000ul}}
+    {.b = {0xffffffffffffffffull, 0xffffffffffffffffull}},
+    {.b = {0xffffffffffffffffull, 0x000007ffffffffffull}},
+    {.b = {0x5555555555555551ull, 0x0000000000555555ull}},
+    {.b = {0xffffffffffffffeaull, 0x0000000000000003ull}},
+    {.b = {0x00003333333332f7ull, 0x0000000000000000ull}},
+    {.b = {0x0000000002aaaa5eull, 0x0000000000000000ull}}
   };
 
   unsigned flagp = _mm_getcsr(), oflagp = flagp, rm = flagp&_MM_ROUND_MASK;
@@ -813,9 +821,9 @@ __float128 cr_logq(__float128 x) {
       res.b[1] = 0xffffull<<48;
       return res.f; // x = +0
     }
-    int nz = __builtin_clzl(u.b[1]) + __builtin_clzl(u.b[0])*!u.b[1];
+    int nz = __builtin_clzll(u.b[1]) + __builtin_clzll(u.b[0])*!u.b[1];
     m.a <<= nz-15;
-    e -= (nz-16ul)<<48;
+    e -= (nz-16ull)<<48;
   }
   e += 112ull<<48;
 
@@ -843,9 +851,9 @@ __float128 cr_logq(__float128 x) {
   fs[0] ^= msk; fs[1] ^= msk; fs[2] ^= msk;
   int nz = __builtin_clzll(fs[2]);
   int ns = nz - 15;
-  u64 t = fs[0], tm = ~0ul>>ns, tr = rm == _MM_ROUND_NEAREST;
+  u64 t = fs[0], tm = ~0ull>>ns, tr = rm == _MM_ROUND_NEAREST;
   u64 rnd = (fs[0]>>(63-ns))&1;
-  i64 el = (0x4029ul-nz)|msk<<15;
+  i64 el = (0x4029ull-nz)|msk<<15;
   if(__builtin_expect(((t + (tr<<(63-ns)) + 12)&tm) <= 24, 0)){ // rounding test
     int ls = nz-14, rs = -ls&63;
     res.b[1] = fs[2]<<ls|fs[1]>>rs;

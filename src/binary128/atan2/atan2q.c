@@ -39,15 +39,6 @@ SOFTWARE.
 #pragma GCC diagnostic ignored "-Wunknown-pragmas"
 #endif
 
-#if (defined(__x86_64__) && (defined(__APPLE__) || defined(_WIN32)))
-static inline __float128 local_nanq(__attribute__((unused)) const char *tagp){
-  b128u128_u u;
-  u.a = ~(u128)0u;
-  return u.f;
-}
-#define __builtin_nanf128(tagp) local_nanq(tagp)
-#endif
-
 typedef __int128 i128;
 typedef unsigned __int128 u128;
 typedef uint64_t u64;
@@ -66,6 +57,11 @@ typedef union {
   i64 bs[2];
   __float128 f;
 } b128u128_u;
+
+#if (defined(_WIN32) || defined(__APPLE__))
+#define __builtin_addcl __builtin_addcll
+#define __builtin_subcl __builtin_subcll
+#endif
 
 static inline void addu3u3u2(u3x64 o, const u3x64 b, const u128 a){
   u64 c, o0, o1, o2;
@@ -776,7 +772,11 @@ static __float128 __attribute__((noinline)) as_atan2q_special(__float128 y, __fl
   if(xnan==2||ynan==2){ // signaling NAN
     flagp |= FE_INVALID;
     if(__builtin_expect(oflagp!=flagp, 0)) _mm_setcsr(flagp);
+#if (defined(_WIN32) || defined(__APPLE__))
+    return 0.0q / 0.0q;
+#else
     return __builtin_nanf128("atan2q");
+#endif
   } else if(ynan==3) {//quiet NAN
     return y; // propagate nan
   } else if(xnan==3) {//quiet NAN
@@ -831,7 +831,7 @@ static inline u128 reciprocalU(u128 kd){
   u128 kdh = kd>>64, kdl = (u64)kd;
   u128 n = (u128)1<<127;
   u64 r = n/kdh;
-  if(__builtin_expect(!r,0)) r = ~0ul;
+  if(__builtin_expect(!r,0)) r = ~0ull;
   i128 Hh = kdh*r; u128 Hl = kdl*r;
   Hh += Hl>>64;
   Hh <<= 57;
@@ -994,8 +994,8 @@ __float128 cr_atan2q(__float128 y, __float128 x) {
     }
   }
   int dn = xn - yn;
-  a.b[1] &= ~0ul>>16; a.b[1] |= 1ull<<48;
-  b.b[1] &= ~0ul>>16; b.b[1] |= 1ull<<48;
+  a.b[1] &= ~0ull>>16; a.b[1] |= 1ull<<48;
+  b.b[1] &= ~0ull>>16; b.b[1] |= 1ull<<48;
   long inda = (a.b[1] >> (48-7))&127, rcpx = (2l+(inda==0)+(inda<43))<<8|rcp[inda], k = ((b.b[1]>>10)*rcpx)>>41;
   if(__builtin_expect(dn<64, 1)){
     k >>= dn;
@@ -1052,16 +1052,16 @@ __float128 cr_atan2q(__float128 y, __float128 x) {
   else
     T2 = 0;
 
-  static const unsigned long c[][2] = {
-    {0xfffffffffffffffful, 0xfffffffffffffffful},
-    {0x555555555555554ful, 0x0015555555555555ul},
-    {0x3333333333332f55ul, 0x0000033333333333ul},
-    {0x49249249249147dful, 0x0000000092492492ul},
-    {0x1c71c71c71a599e3ul, 0x00000000001c71c7ul},
-    {0x745d1745cf00b15ful, 0x00000000000005d1ul},
-    {0x3b13b13af8b70dd8ul, 0x0000000000000001ul},
-    {0x004444439744d102ul, 0x0000000000000000ul},
-    {0x00000f0cb8c66f08ul, 0x0000000000000000ul}
+  static const u64 c[][2] = {
+    {0xffffffffffffffffull, 0xffffffffffffffffull},
+    {0x555555555555554full, 0x0015555555555555ull},
+    {0x3333333333332f55ull, 0x0000033333333333ull},
+    {0x49249249249147dfull, 0x0000000092492492ull},
+    {0x1c71c71c71a599e3ull, 0x00000000001c71c7ull},
+    {0x745d1745cf00b15full, 0x00000000000005d1ull},
+    {0x3b13b13af8b70dd8ull, 0x0000000000000001ull},
+    {0x004444439744d102ull, 0x0000000000000000ull},
+    {0x00000f0cb8c66f08ull, 0x0000000000000000ull}
   };
   u64 t2h = T2>>64, fl = c[8][0];
   fl = c[7][0] - mhuu(t2h, fl);
@@ -1093,12 +1093,12 @@ __float128 cr_atan2q(__float128 y, __float128 x) {
     k = __builtin_clzll(f3[2]);
     rnd = (f3[1]>>(14-k))&1;
     u128 t = (u128)f3[1]<<64|f3[0];
-    const u64 eps = 0xca2339c0ebedfa4ul;
+    const u64 eps = 0xca2339c0ebedfa4ull;
     t += eps;
     u64 th = t>>64, tl = t;
-    th &= (1ul<<(15-k))-1;
+    th &= (1ull<<(15-k))-1;
     th ^= (u64)(rm == _MM_ROUND_NEAREST)<<(14-k);
-    if(__builtin_expect(th==0 && tl<0x194467381d7dbf48ul, 0)) return as_atan2_accurate(y,x);
+    if(__builtin_expect(th==0 && tl<0x194467381d7dbf48ull, 0)) return as_atan2_accurate(y,x);
     xn = 0x3fff - k;
     v.b[0] = f3[1]>>(15-k)|f3[2]<<(49+k);
     v.b[1] = f3[2]>>(15-k);
@@ -1107,7 +1107,7 @@ __float128 cr_atan2q(__float128 y, __float128 x) {
     k = __builtin_clzll(v.b[1]);
     xn = 0x3ffe - dn - k;
     if(xn>0){
-      u64 tl = (v.b[0] + 6) & (~0ul>>(49+k));
+      u64 tl = (v.b[0] + 6) & (~0ull>>(49+k));
       tl ^= (u64)(rm == _MM_ROUND_NEAREST)<<(14-k);
       if(__builtin_expect(tl<=15, 0)) return as_atan2_accurate(y,x);
       rnd = (v.b[0]>>(14-k))&1;
@@ -1137,7 +1137,7 @@ __float128 cr_atan2q(__float128 y, __float128 x) {
   dv.b[0] = rnd;
   dv.b[1] = (u128)xn<<48;
   v.a += dv.a;
-  if(v.b[1] < 1ul<<48){
+  if(v.b[1] < 1ull<<48){
     flagp |= FE_UNDERFLOW;
 #ifdef CORE_MATH_SUPPORT_ERRNO
     errno = ERANGE; // underflow
@@ -1189,8 +1189,8 @@ __float128 as_atan2_accurate(__float128 y, __float128 x){
     }
   }
   int dn = xn - yn;
-  a.b[1] &= ~0ul>>16; a.b[1] |= 1ull<<48;
-  b.b[1] &= ~0ul>>16; b.b[1] |= 1ull<<48;
+  a.b[1] &= ~0ull>>16; a.b[1] |= 1ull<<48;
+  b.b[1] &= ~0ull>>16; b.b[1] |= 1ull<<48;
   long inda = (a.b[1] >> (48-7))&127, rcpx = (2l+(inda==0)+(inda<43))<<8|rcp[inda], k = ((b.b[1]>>10)*rcpx)>>41;
   if(__builtin_expect(dn<64, 1))
     k >>= dn;
@@ -1372,7 +1372,7 @@ __float128 as_atan2_accurate(__float128 y, __float128 x){
   dv.b[0] = rnd;
   dv.b[1] = (u64)xn<<48;
   v.a += dv.a;
-  if(v.b[1] < 1ul<<48){
+  if(v.b[1] < 1ull<<48){
     flagp |= FE_UNDERFLOW;
 #ifdef CORE_MATH_SUPPORT_ERRNO
     errno = ERANGE; // underflow
@@ -1385,7 +1385,7 @@ __float128 as_atan2_accurate(__float128 y, __float128 x){
   return res;
 }
 
-
+#ifndef __APPLE__
 // somewhat we need to include that for icx and the Intel math library
 extern __float128 __atan2q (__float128, __float128);
 // somewhat we need to include that for GNU libc
@@ -1399,3 +1399,4 @@ __float128 atan2q(__float128 x, __float128 y) {
   return atan2f128 (x, y);
 #endif
 }
+#endif
