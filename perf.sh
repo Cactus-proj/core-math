@@ -201,10 +201,6 @@ elif [ "$CORE_MATH_PERF_MODE" = rdtsc ]; then
     proc_rdtsc
 fi
 
-has_symbol () {
-    [ "$(nm "$LIBM" | while read a b c; do if [ "$c" = "$g" ]; then echo OK; return; fi; done | wc -l)" -ge 1 ]
-}
-
 if [ -n "$BACKUP_LIBM" ]; then
     export LIBM="$BACKUP_LIBM"
     if has_symbol; then
