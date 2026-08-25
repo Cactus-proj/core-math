@@ -726,7 +726,7 @@ __float128 cr_exp2q(__float128 x) {
   unsigned flagp = _mm_getcsr(), oflagp = flagp, rm = flagp&_MM_ROUND_MASK;
   b128u128_u u = {.a = reinterpret_f128_as_u128(x)};
   u64 b1 = u.b[1]&~0ull>>1; // strip the sign
-  if(__builtin_expect(b1<=0x3f8d71547652b82full, 0)){ // x is small so 2^x always rounds to 1 in the nearest mode
+  if(__builtin_expect(b1<0x3f8d71547652b82full, 0)){ // x is small so 2^x always rounds to 1 in the nearest mode
     b128u128_u r = {.f = 1.0q};
     if(!(u.b[1]<<1|u.b[0])) return r.f; // exact result
     r.a += (rm==_MM_ROUND_UP) - (int)(u.b[1]>>63)*(rm!=_MM_ROUND_NEAREST);
