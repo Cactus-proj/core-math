@@ -3,6 +3,10 @@
 # To link statically to GNU libc, say installed in /tmp:
 # EXTRA_CFLAGS=-I/tmp/include LDFLAGS="-L/tmp/lib -static" ./perf.sh acosf
 
+# to test the function cr_log from the Intel Math Library:
+# add #if CORE_MATH_DO_DEFINE .. #endif around cr_log in src/binary64/log/log.c
+# CORE_MATH_STD_NAME=cr_log CC=icx CFLAGS="-O3 -march=native -fp-model=precise -fno-fast-math -DCORE_MATH_DO_DEFINE=0" ./perf.sh log
+
 set -e
 
 export LC_ALL=C.UTF-8
