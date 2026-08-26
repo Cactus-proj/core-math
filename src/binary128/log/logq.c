@@ -849,7 +849,12 @@ __float128 cr_logq(__float128 x) {
   add3(fs,fs,d);
   i64 msk = fs[2]; msk>>=63;
   fs[0] ^= msk; fs[1] ^= msk; fs[2] ^= msk;
-  int nz = __builtin_clzll(fs[2]);
+  int nz;
+  if(__builtin_expect(fs[2], 1)){
+    nz = __builtin_clzll(fs[2]);
+  } else {
+    nz = __builtin_clzll(fs[1]) + 64;
+  } 
   int ns = nz - 15;
   u64 t = fs[0], tm = ~0ull>>ns, tr = rm == _MM_ROUND_NEAREST;
   u64 rnd = (fs[0]>>(63-ns))&1;
