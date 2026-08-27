@@ -112,7 +112,7 @@ then
 fi
 # Please uncomment the lines below if your Fortran compiler supports the REAL128 kind.
 # echo "! quad unary functions"
-# for I in asin atan cbrt exp exp10 exp2 expm1 log rsqrt sqrt
+# for I in acos asin atan cbrt exp exp10 exp2 expm1 log rsqrt sqrt
 # do
 # 	echo "interface"
 # 	echo "   pure function cr_${I}q(x) bind(c,name='cr_${I}q')"

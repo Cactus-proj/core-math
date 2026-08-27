@@ -755,7 +755,7 @@ static inline char getclass(u128 x){
 
 static __float128 __attribute__((noinline)) as_atan2q_special(__float128 y, __float128 x){
   unsigned flagp = _mm_getcsr(), oflagp = flagp, rm = flagp&_MM_ROUND_MASK;
-  const u64 smsk = 1ll<<63;
+  const u64 smsk = 1ull<<63;
   b128u128_u iy = {.f = y}, ix = {.f = x};
   static const b128u128_u rs[] = {
     {.b = {0, 0}}, // 0
@@ -952,7 +952,7 @@ static __float128 as_atan2_accurate(__float128, __float128);
 
 __float128 cr_atan2q(__float128 y, __float128 x) {
   unsigned flagp = _mm_getcsr(), oflagp = flagp, rm = flagp&_MM_ROUND_MASK;
-  const u64 smsk = 1ll<<63, inf = 0x7fffull<<48;
+  const u64 smsk = 1ull<<63, inf = 0x7fffull<<48;
   b128u128_u X = {.a = reinterpret_f128_as_u128(x)};
   b128u128_u Y = {.a = reinterpret_f128_as_u128(y)};
   u64 xsgn = X.bs[1]>>63, ysgn = Y.b[1]&smsk;
@@ -1153,7 +1153,7 @@ __float128 cr_atan2q(__float128 y, __float128 x) {
 
 __float128 as_atan2_accurate(__float128 y, __float128 x){
   unsigned flagp = _mm_getcsr(), oflagp = flagp, rm = flagp&_MM_ROUND_MASK;
-  const u64 smsk = 1ll<<63;
+  const u64 smsk = 1ull<<63;
   b128u128_u X = {.a = reinterpret_f128_as_u128(x)};
   b128u128_u Y = {.a = reinterpret_f128_as_u128(y)};
   u64 xsgn = X.b[1]>>63, ysgn = Y.b[1]&smsk;

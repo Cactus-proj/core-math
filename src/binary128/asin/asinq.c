@@ -886,7 +886,7 @@ __float128 cr_asinq(__float128 x) {
   };
 
   unsigned flagp = _mm_getcsr(), oflagp = flagp, rm = flagp&_MM_ROUND_MASK;
-  const u64 smsk = 1ll<<63;
+  const u64 smsk = 1ull<<63;
   b128u128_u X = {.a = reinterpret_f128_as_u128(x)};
   u64 xsgn = X.b[1]&smsk;
   X.b[1] &= ~smsk; // strip sign
@@ -1288,7 +1288,7 @@ static inline void cpu5(u5x64 o, const u5x64 a){
 
 __float128 as_asinq_accurate(__float128 x){  
   unsigned flagp = _mm_getcsr(), oflagp = flagp, rm = flagp&_MM_ROUND_MASK;
-  const u64 smsk = 1ll<<63;
+  const u64 smsk = 1ull<<63;
   b128u128_u X = {.a = reinterpret_f128_as_u128(x)};
   u64 xsgn = X.b[1]&smsk;
   X.b[1] &= ~smsk; // strip sign

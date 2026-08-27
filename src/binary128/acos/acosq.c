@@ -37,15 +37,6 @@ SOFTWARE.
 #pragma GCC diagnostic ignored "-Wunknown-pragmas"
 #endif
 
-#if (defined(__x86_64__) && (defined(__APPLE__) || defined(_WIN32)))
-static inline __float128 local_nanq(__attribute__((unused)) const char *tagp){
-  b128u128_u u;
-  u.a = ~(u128)0u;
-  return u.f;
-}
-#define __builtin_nanf128(tagp) local_nanq(tagp)
-#endif
-
 typedef __int128 i128;
 typedef unsigned __int128 u128;
 typedef uint64_t u64;
@@ -70,6 +61,11 @@ typedef union {
 static inline u64 mhuu(u64 _a, u64 _b){
   return ((u128)_a*_b)>>64;
 }
+
+#if (defined(_WIN32) || defined(__APPLE__))
+#define __builtin_addcl __builtin_addcll
+#define __builtin_subcl __builtin_subcll
+#endif
 
 static inline void mhu3uu3(u3x64 o, u64 y, const u3x64 x){
   u128 xy0 = x[0]*(u128)y;
@@ -754,7 +750,7 @@ static const char ind[] = {
 
 // range reduction based on the first 64 bits of a quad precision number 0<x<1
 static inline u64 jget(u64 x){
-  u64 z = (0x3ffful<<48) - x;
+  u64 z = (0x3fffull<<48) - x;
   u64 mz = z<<16;
   long e = z>>48;
   long nz = __builtin_clzll(mz)*(e==0);
@@ -883,26 +879,26 @@ static __float128 as_acosq_accurate(__float128);
 
 __float128 cr_acosq(__float128 x) {
   static const u64 c[][2] = {
-    {0xaaaaaaaaaaaaaaa9ul, 0xaaaaaaaaaaaaaaaaul},
-    {0x333333333333337aul, 0x0013333333333333ul},
-    {0xb6db6db6db6dae36ul, 0x000002db6db6db6dul},
-    {0x71c71c71c71cfc25ul, 0x000000007c71c71cul},
-    {0x2e8ba2e8ba29804eul, 0x000000000016e8baul},
-    {0x3b13b13b13ce93b6ul, 0x0000000000000471ul},
-    {0xe4cccccccc5f2a5aul, 0x0000000000000000ul},
-    {0x002f50f0f1f806dcul, 0x0000000000000000ul},
-    {0x000009fef0fec73aul, 0x0000000000000000ul},
-    {0x0000000227286573ul, 0x0000000000000000ul},
+    {0xaaaaaaaaaaaaaaa9ull, 0xaaaaaaaaaaaaaaaaull},
+    {0x333333333333337aull, 0x0013333333333333ull},
+    {0xb6db6db6db6dae36ull, 0x000002db6db6db6dull},
+    {0x71c71c71c71cfc25ull, 0x000000007c71c71cull},
+    {0x2e8ba2e8ba29804eull, 0x000000000016e8baull},
+    {0x3b13b13b13ce93b6ull, 0x0000000000000471ull},
+    {0xe4cccccccc5f2a5aull, 0x0000000000000000ull},
+    {0x002f50f0f1f806dcull, 0x0000000000000000ull},
+    {0x000009fef0fec73aull, 0x0000000000000000ull},
+    {0x0000000227286573ull, 0x0000000000000000ull},
   };
 
   unsigned flagp = _mm_getcsr(), oflagp = flagp, rm = flagp&_MM_ROUND_MASK;
-  const u64 smsk = 1ll<<63;
+  const u64 smsk = 1ull<<63;
   b128u128_u X = {.a = reinterpret_f128_as_u128(x)};
   i64 xsgn = X.b[1]&smsk;
   X.b[1] &= ~smsk; // strip sign
   long xn = X.b[1]>>48;
   if(__builtin_expect(xn>=0x3fff,0)){ // |x|>=1, Inf, NaN
-    if(X.b[0]==0&&X.b[1]==(0x3ffful<<48)){
+    if(X.b[0]==0&&X.b[1]==(0x3fffull<<48)){
       if(xsgn){
 	X.f = 0x1.921fb54442d18469898cc51701b8p+1q;
 	X.a += (rm != _MM_ROUND_NEAREST)*(rm==_MM_ROUND_UP);
@@ -919,7 +915,11 @@ __float128 cr_acosq(__float128 x) {
       if(xnan==2){ // signaling NAN
 	flagp |= FE_INVALID;
 	if(__builtin_expect(oflagp!=flagp, 0)) _mm_setcsr(flagp);
+#if (defined(_WIN32) || defined(__APPLE__))
+        return 0.0q / 0.0q;
+#else
 	return __builtin_nanf128("acosq");
+#endif
       } else if(xnan==3) {//quiet NAN
 	return x; // propagate nan
       }
@@ -929,11 +929,15 @@ __float128 cr_acosq(__float128 x) {
       flagp |= FE_INVALID;
       // set invalid flag only if it is not set before
       if(__builtin_expect(oflagp!=flagp, 0)) _mm_setcsr(flagp);
+#if (defined(_WIN32) || defined(__APPLE__))
+      return 0.0q / 0.0q;
+#else
       return __builtin_nanf128("acosq");
+#endif
     }
   }
   u64 j = jget(X.b[1]); // range reduction
-  X.b[1] |= 1ul<<48;
+  X.b[1] |= 1ull<<48;
   X.a <<= 15;
   u128 t = X.a;
   int nz = 0x3fff-xn;
@@ -1062,8 +1066,8 @@ __float128 cr_acosq(__float128 x) {
     xn = 0x3fff - k;
 
     sf = sf>60?60:sf;
-    u64 Eps = 1ul<<(69-sf);
-    u128 msk = (u128)(~0ul >> (k + 0x31 + (rm == _MM_ROUND_NEAREST)))<<64|~0ul;
+    u64 Eps = 1ull<<(69-sf);
+    u128 msk = (u128)(~0ull >> (k + 0x31 + (rm == _MM_ROUND_NEAREST)))<<64|~0ull;
     u128 tl = (u128)xc[1]<<64|xc[0];
     tl += Eps;
     tl &= msk;
@@ -1088,12 +1092,12 @@ __float128 cr_acosq(__float128 x) {
     int k = v.b[1]>>63;
     rnd = (v.b[0]>>(13+k))&1;
     v.a >>= 14+k;
-    v.b[1] &= ~0ul>>16;
+    v.b[1] &= ~0ull>>16;
     xn += k-nz;
 
     sf = sf>60?60:sf;
-    u64 Eps = 1ul<<(68-sf);
-    u128 msk = (u128)(~0ul >> (k + 0x31 + (rm == _MM_ROUND_NEAREST)))<<64|~0ul;
+    u64 Eps = 1ull<<(68-sf);
+    u128 msk = (u128)(~0ull >> (k + 0x31 + (rm == _MM_ROUND_NEAREST)))<<64|~0ull;
     u128 tl = (u128)xc[1]<<64|xc[0];
     tl += Eps;
     tl &= msk;
@@ -1245,23 +1249,23 @@ static int getcos(u5x64 sq, int ex, u2x64 x){
 
 static inline void evalpoly(u5x64 f, const u5x64 t2){
   static const u64 cp[] = {
-    0x1343996b9f42b9f5ul, 0x255e6e351770584dul, 0x00000000000000a3ul, 0x5e2111cba47a2b05ul, 0x000000000005717dul,
-    0xa97f20b758a855cdul, 0x000000002ea1bcc9ul, 0x889c99395996e6ceul, 0x00000190cb77f60cul, 0xc7476c854bade5bful,
-    0x000d8137abd89d89ul, 0x97b4ea2813d93845ul, 0x74f4aa383759f229ul, 0x5abb1888e58be523ul, 0x5f1f6db6db6db6dbul,
-    0x00000000000003f9ul, 0x9a1160a9ab2539ceul, 0xa8ba2e8ba2e8ba2eul, 0x000000000022bdd3ul, 0x72ec43b868c4b3c0ul,
-    0xf7bdef7bdef7bdeful, 0x0000000131683bdeul, 0x4b2852d709bf2295ul, 0x58469ee58469ee58ul, 0x00000a8dd18469eeul,
-    0x2d86e53634cafb09ul, 0x684bda12f684bda1ul, 0x005e0b7684bda12ful, 0x151d85735049738ful, 0xe147ae147ae147aeul,
-    0x4d0c7ae147ae147aul, 0x0000000000000003ul, 0x9ba6f1b2735cae39ul, 0x6f4de9bd37a6f4deul, 0xbd37a6f4de9bd37aul,
-    0x0000000000001df3ul, 0xcf46c00a8ed8a2e2ul, 0x3cf3cf3cf3cf3cf3ul, 0xf3cf3cf3cf3cf3cful, 0x000000000112ef3cul,
-    0x86baeba7afbb9dd6ul, 0xbca1af286bca1af2ul, 0xa1af286bca1af286ul, 0x00000009fef286bcul, 0xe1e21d9d6b73053dul,
-    0xe1e1e1e1e1e1e1e1ul, 0xe1e1e1e1e1e1e1e1ul, 0x00005ea1e1e1e1e1ul, 0x33332cfa4ccaad37ul, 0x3333333333333333ul,
-    0x3333333333333333ul, 0x0393333333333333ul, 0x89d89e04e6327ae5ul, 0xd89d89d89d89d89dul, 0x9d89d89d89d89d89ul,
-    0x89d89d89d89d89d8ul, 0x0000000000000023ul, 0x8ba2e8b369ee2b14ul, 0xe8ba2e8ba2e8ba2eul, 0x2e8ba2e8ba2e8ba2ul,
-    0xa2e8ba2e8ba2e8baul, 0x0000000000016e8bul, 0x8e38e38e78e717bcul, 0x38e38e38e38e38e3ul, 0xe38e38e38e38e38eul,
-    0x8e38e38e38e38e38ul, 0x000000000f8e38e3ul, 0x6db6db6db566fac3ul, 0xb6db6db6db6db6dbul, 0xdb6db6db6db6db6dul,
-    0x6db6db6db6db6db6ul, 0x000000b6db6db6dbul, 0x99999999999e1925ul, 0x9999999999999999ul, 0x9999999999999999ul,
-    0x9999999999999999ul, 0x0009999999999999ul, 0xaaaaaaaaaaaaa521ul, 0xaaaaaaaaaaaaaaaaul, 0xaaaaaaaaaaaaaaaaul,
-    0xaaaaaaaaaaaaaaaaul, 0xaaaaaaaaaaaaaaaaul};
+    0x1343996b9f42b9f5ull, 0x255e6e351770584dull, 0x00000000000000a3ull, 0x5e2111cba47a2b05ull, 0x000000000005717dull,
+    0xa97f20b758a855cdull, 0x000000002ea1bcc9ull, 0x889c99395996e6ceull, 0x00000190cb77f60cull, 0xc7476c854bade5bfull,
+    0x000d8137abd89d89ull, 0x97b4ea2813d93845ull, 0x74f4aa383759f229ull, 0x5abb1888e58be523ull, 0x5f1f6db6db6db6dbull,
+    0x00000000000003f9ull, 0x9a1160a9ab2539ceull, 0xa8ba2e8ba2e8ba2eull, 0x000000000022bdd3ull, 0x72ec43b868c4b3c0ull,
+    0xf7bdef7bdef7bdefull, 0x0000000131683bdeull, 0x4b2852d709bf2295ull, 0x58469ee58469ee58ull, 0x00000a8dd18469eeull,
+    0x2d86e53634cafb09ull, 0x684bda12f684bda1ull, 0x005e0b7684bda12full, 0x151d85735049738full, 0xe147ae147ae147aeull,
+    0x4d0c7ae147ae147aull, 0x0000000000000003ull, 0x9ba6f1b2735cae39ull, 0x6f4de9bd37a6f4deull, 0xbd37a6f4de9bd37aull,
+    0x0000000000001df3ull, 0xcf46c00a8ed8a2e2ull, 0x3cf3cf3cf3cf3cf3ull, 0xf3cf3cf3cf3cf3cfull, 0x000000000112ef3cull,
+    0x86baeba7afbb9dd6ull, 0xbca1af286bca1af2ull, 0xa1af286bca1af286ull, 0x00000009fef286bcull, 0xe1e21d9d6b73053dull,
+    0xe1e1e1e1e1e1e1e1ull, 0xe1e1e1e1e1e1e1e1ull, 0x00005ea1e1e1e1e1ull, 0x33332cfa4ccaad37ull, 0x3333333333333333ull,
+    0x3333333333333333ull, 0x0393333333333333ull, 0x89d89e04e6327ae5ull, 0xd89d89d89d89d89dull, 0x9d89d89d89d89d89ull,
+    0x89d89d89d89d89d8ull, 0x0000000000000023ull, 0x8ba2e8b369ee2b14ull, 0xe8ba2e8ba2e8ba2eull, 0x2e8ba2e8ba2e8ba2ull,
+    0xa2e8ba2e8ba2e8baull, 0x0000000000016e8bull, 0x8e38e38e78e717bcull, 0x38e38e38e38e38e3ull, 0xe38e38e38e38e38eull,
+    0x8e38e38e38e38e38ull, 0x000000000f8e38e3ull, 0x6db6db6db566fac3ull, 0xb6db6db6db6db6dbull, 0xdb6db6db6db6db6dull,
+    0x6db6db6db6db6db6ull, 0x000000b6db6db6dbull, 0x99999999999e1925ull, 0x9999999999999999ull, 0x9999999999999999ull,
+    0x9999999999999999ull, 0x0009999999999999ull, 0xaaaaaaaaaaaaa521ull, 0xaaaaaaaaaaaaaaaaull, 0xaaaaaaaaaaaaaaaaull,
+    0xaaaaaaaaaaaaaaaaull, 0xaaaaaaaaaaaaaaaaull};
   const u64 *ck = cp;
   f[0] = ck[0];
   mhu1u1u1(f, f, t2 + 4); addu1u1u1(f, ck += 1, f);
@@ -1299,13 +1303,13 @@ static inline void cpu5(u5x64 o, const u5x64 a){
 
 __float128 as_acosq_accurate(__float128 x){
   unsigned flagp = _mm_getcsr(), oflagp = flagp, rm = flagp&_MM_ROUND_MASK;
-  const u64 smsk = 1ll<<63;
+  const u64 smsk = 1ull<<63;
   b128u128_u X = {.a = reinterpret_f128_as_u128(x)};
   u64 xsgn = X.b[1]&smsk;
   X.b[1] &= ~smsk; // strip sign
   long xn = X.b[1]>>48;
   u64 j = jget(X.b[1]);
-  X.b[1] |= 1ul<<48;
+  X.b[1] |= 1ull<<48;
   X.a <<= 15;
   u5x64 t;
   int nz = 0x3fff-xn;
@@ -1371,7 +1375,7 @@ __float128 as_acosq_accurate(__float128 x){
     rnd = (v.b[0]>>(13+k))&1;
     v.a >>= (14+k)&63;
     xn += k-nz;
-    v.b[1] &= ~0ul>>16;
+    v.b[1] &= ~0ull>>16;
   }
 
   if(__builtin_expect(rm != _MM_ROUND_NEAREST, 0))
@@ -1386,6 +1390,7 @@ __float128 as_acosq_accurate(__float128 x){
   return res;
 }
 
+#ifndef __APPLE__
 // somewhat we need to include that for icx and the Intel math library
 extern __float128 __acosq (__float128, __float128);
 
@@ -1397,3 +1402,4 @@ __float128 acosq(__float128 x) {
   return acosf128 (x);
 #endif
 }
+#endif
