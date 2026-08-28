@@ -535,7 +535,9 @@ static int doloop (void)
 extern int signgam;
 
 /* Check signgam is correctly set. This test should be performed in
-   single-thread mode, since signgam is not thread-local. */
+   single-thread mode, since signgam is not thread-local.
+   Note: signgam is only defined by POSIX, thus when supporting only
+   the C standard, one should not worry about signgam. */
 static void check_signgam (void) {
   float X[] = { 0.0f/0.0f, -123.5f, -2.5f, -1.5f, 2.0f, 2.5f, 123.0f };
   int S[] = { 1, 1, -1, 1, 1, 1, 1 };
