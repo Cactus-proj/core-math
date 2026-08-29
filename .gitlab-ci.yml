@@ -68,6 +68,17 @@ check_core2:
     - apt-get update -qq && apt-get install -qq build-essential git
     - LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH EXTRA_CFLAGS="-O3 -march=core2 -Werror -I/usr/local/include" LDFLAGS="-L/usr/local/lib" ./ci.sh
 
+# ensure clz/ctz is not called with 0
+check_nolzcnt:
+  stage: test
+  image: debian:latest
+  before_script:
+    - ci/00-prepare-docker.sh
+  script:
+    - apt-get update -qq && apt-get install -qq build-essential git libmpfr-dev
+    # x86-64-v2 is needed for rsqrtq
+    - LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH EXTRA_CFLAGS="-mno-lzcnt -mno-bmi -I/usr/local/include" LDFLAGS="-L/usr/local/lib" ./ci.sh
+
 check_dry:
   stage: test
   image: debian:testing
