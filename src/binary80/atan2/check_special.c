@@ -151,9 +151,8 @@ static int
 check (long double x, long double y)
 {
   int ret = check_aux (x, y);
-  // if y is an integer, also check with -x
-  if (y == (long double) (int64_t) y)
-    ret += check_aux (-x, y);
+  // also check with -x
+  ret += check_aux (-x, y);
   return ret;
 }
 
