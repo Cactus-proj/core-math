@@ -74,7 +74,7 @@ static inline u128 mhuU(u64 y, u128 x){
   return xy1 + (xy0>>64);
 }
 
-// get appoximate high part of unsigned 128x128 bit multiplication
+// get approximate high part of unsigned 128x128 bit multiplication
 static inline u128 mhUU(u128 _a, u128 _b){
   b128u128_u a, b, a1b0, a0b1, a1b1;
   a.a = _a;

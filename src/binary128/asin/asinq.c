@@ -92,7 +92,7 @@ static inline void mhu3u2u3(u3x64 o, u2x64 y, const u3x64 x){
   o[2]  = __builtin_addcl(   0, x2y1>>64, c, &c);
 }
 
-// get appoximate high part of unsigned 128x128 bit multiplication
+// get approximate high part of unsigned 128x128 bit multiplication
 static inline u128 mhUU(u128 _a, u128 _b){
   b128u128_u a, b, a1b0, a0b1, a1b1;
   a.a = _a;
@@ -527,7 +527,7 @@ static inline void sqrU(u4x64 o, const u2x64 x){
   o[3] = __builtin_addcl(p11>>64, p10x, c, &c);
 }
 
-// get appoximate high part of unsigned 128 bit squaring
+// get approximate high part of unsigned 128 bit squaring
 static inline u128 sqrhU(u128 _a){
   b128u128_u a, a10, a11;
   a.a = _a;

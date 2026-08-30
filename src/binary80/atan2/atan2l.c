@@ -80,7 +80,7 @@ static inline void __attribute__((always_inline)) mhu3u3u2(u3x64 o, const u3x64 
   o[2] = __builtin_addcl(o[2],        0, c0, &c0);
 }
 
-// get appoximate high part of unsigned 192x192 bit multiplication
+// get approximate high part of unsigned 192x192 bit multiplication
 static inline void __attribute__((always_inline)) mhu3u3u3(u3x64 o, const u3x64 b, const u3x64 a){
   u128 a2b0 = (u128)a[2]*b[0];
   u128 a2b1 = (u128)a[2]*b[1];
@@ -178,7 +178,7 @@ static inline u128 mUU(u128 _a, u128 _b, u128 *t){
   return a1b1.a;
 }
 
-// get appoximate high part of unsigned 128x128 bit multiplication
+// get approximate high part of unsigned 128x128 bit multiplication
 static inline u128 mhUU(u128 _a, u128 _b){
   u128_u a, b, a1b0, a0b1, a1b1;
   a.a = _a;
