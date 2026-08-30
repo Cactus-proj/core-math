@@ -741,7 +741,7 @@ static __float128 __attribute__((noinline)) as_exp10q_exact(u64 k){
   p.a *= pw[((k&16)!=0)*5];
   u128 t = pw[((k&32)!=0)*5];
   p.a *= t*t;
-  int nz = __builtin_clzll(p.b[1]) + __builtin_clzll(p.b[0])*!p.b[1];
+  int nz = p.b[1]?__builtin_clzll(p.b[1]):__builtin_clzll(p.b[0])+64;
   p.a <<= nz-15;
   p.b[1] += (16509 - nz + k)<<48;
   return reinterpret_u128_as_f128(p.a);
