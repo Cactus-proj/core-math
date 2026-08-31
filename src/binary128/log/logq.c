@@ -821,7 +821,7 @@ __float128 cr_logq(__float128 x) {
       res.b[1] = 0xffffull<<48;
       return res.f; // x = +0
     }
-    int nz = __builtin_clzll(u.b[1]) + __builtin_clzll(u.b[0])*!u.b[1];
+    int nz = u.b[1]?__builtin_clzll(u.b[1]):__builtin_clzll(u.b[0])+64;
     m.a <<= nz-15;
     e -= (nz-16ull)<<48;
   }
