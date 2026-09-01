@@ -69,6 +69,11 @@ check_core2:
     - LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH EXTRA_CFLAGS="-O3 -march=core2 -Werror -I/usr/local/include" LDFLAGS="-L/usr/local/lib" ./ci.sh
 
 # ensure clz/ctz is not called with 0
+# gcc __builtin_clz / __builtin_ctz: If x is 0, the result is undefined.
+# https://gcc.gnu.org/onlinedocs/gcc/Bit-Operation-Builtins.html
+# clang __builtin_clzg / __builtin_ctzg: If the first argument is 0,
+# but only one argument is provided, then the behavior is undefined.
+# https://clang.llvm.org/docs/LanguageExtensions.html#builtin-clzg-and-builtin-ctzg
 check_nolzcnt:
   stage: test
   image: debian:latest
