@@ -201,7 +201,7 @@ main (int argc, char *argv[])
   dx             = 0x0.0000000010000000p+13L/ (long double) CORE_MATH_TESTS;
   ulp = 0x1p-50L;
   skip = dx / ulp;
-  n0 = seed % skip;
+  n0 = (skip == 0) ? seed : seed % skip;
   x3 += (long double) n0 * ulp - (skip/2) * ulp;
 #if (defined(_OPENMP) && !defined(CORE_MATH_NO_OPENMP))
 #pragma omp parallel for
