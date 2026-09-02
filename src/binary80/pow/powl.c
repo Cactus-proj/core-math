@@ -1003,13 +1003,13 @@ long double fastpath_roundtest(double rh, double rl, int extra_exp,
 	fast_two_sum(&rh, &rl, rh, rl); // The fast_two_sum precondition is satisfied
 
 	b64u64_t th = {.f = rh}, tl = {.f = rl};
-	long eh = th.u>>52, el = (tl.u>>52)&0x3ff, de = eh - el;
+	long long eh = th.u>>52, el = (tl.u>>52)&0x3ff, de = eh - el;
 	// the high part is always positive, the low part can be positive or negative
 	// represent the mantissa of the low part in two's complement format
-	long ml = (tl.u&~(0xfffull<<52))|1ll<<52, sgnl = -(tl.u>>63);
+	long long ml = (tl.u&~(0xfffull<<52))|1ll<<52, sgnl = -(tl.u>>63);
 	ml = (ml^sgnl) - sgnl;
 	int64_t mlt;
-	long sh = de-11;
+	long long sh = de-11;
 	if(__builtin_expect(sh>63,0)){
 		mlt = sgnl;
 		if(__builtin_expect(sh-64>63,0)) ml = sgnl;
@@ -1170,7 +1170,7 @@ inline static
 void q_log2pow(qint64_t* r, long double x, long double y) {
 	b80u80_t cvt_x = {.f = x};
 	int extra_int = (cvt_x.e&0x7fff) - 16383;
-	int shiftamnt = __builtin_clzl(cvt_x.m); // We know x is not 0 so not UB
+	int shiftamnt = __builtin_clzll(cvt_x.m); // We know x is not 0 so not UB
 
 	extra_int -= shiftamnt ? (shiftamnt - 1) : 0;
 	cvt_x.m <<= shiftamnt; // Handle denormals
@@ -1332,7 +1332,7 @@ void q_exp2xs(qint64_t* r, uint64_t fracpart, qint64_t* corr) {
 		cp_qint(corr, &ZERO_Q);
 	} else {
 		// Convert corr_h and corr_l to a qint
-		int shift = __builtin_clzl(corr_h);
+		int shift = __builtin_clzll(corr_h);
 		corr_h = (uint64_t)corr_h<<shift;
 		corr_h |= shift ? (corr_l >> (128 - shift)) : 0;
 		corr_l <<= shift;

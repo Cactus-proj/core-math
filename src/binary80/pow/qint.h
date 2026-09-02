@@ -194,7 +194,7 @@ static inline void qint_fromd (qint64_t *a, double b) {
 
   /* |b| = 2^(ex-52)*hi */
 
-  uint32_t t = (a->hh) ? __builtin_clzl (a->hh) : 0;
+  uint32_t t = (a->hh) ? __builtin_clzll (a->hh) : 0;
 
   a->sgn = b < 0.0;
   a->ex = a->ex - (t > 11 ? t - 12 : 0);
@@ -212,7 +212,7 @@ static inline void qint_fromld(qint64_t* a, long double x) {
 	a->sgn = cvt_x.e>>15;
 	a->ex  = (cvt_x.e&0x7fff) - 16383;
 	a->hh  = cvt_x.m;
-	int shiftamnt = __builtin_clzl(a->hh);
+	int shiftamnt = __builtin_clzll(a->hh);
 	a->hh <<= shiftamnt;
 	a->ex -=  shiftamnt; // Subnormal handling
 	a->hl = a->lh = a->ll = 0;
@@ -262,11 +262,11 @@ static inline void qint_fromdd(qint64_t* a, double h, double l) {
 				new_mantissa = -new_mantissa; // Positive mantissa
 				// Renormalize
 				if(new_mantissa >> 64) {
-					unsigned shiftamnt = __builtin_clzl((new_mantissa >> 64));
+					unsigned shiftamnt = __builtin_clzll((new_mantissa >> 64));
 					new_mantissa <<= shiftamnt;
 					a->ex -= shiftamnt;
 				} else {
-					unsigned shiftamnt = __builtin_clzl((unsigned long)new_mantissa) + 64;
+					unsigned shiftamnt = __builtin_clzll((unsigned long long)new_mantissa) + 64;
 					new_mantissa <<= shiftamnt;
 					a->ex -= shiftamnt;
 				}
@@ -588,10 +588,10 @@ add_qint (qint64_t *r, const qint64_t *a, const qint64_t *b) {
     /* we cannot have C=0 since |A| > |B| */
     uint64_t chh = ch >> 64, clh = cl >> 64;
     ex =
-      chh ? __builtin_clzl(chh)
-      : 64 + (ch ? __builtin_clzl(ch)
-              : 64 + (clh ? __builtin_clzl(clh)
-                      : 64 + __builtin_clzl(cl)));
+      chh ? __builtin_clzll(chh)
+      : 64 + (ch ? __builtin_clzll(ch)
+              : 64 + (clh ? __builtin_clzll(clh)
+                      : 64 + __builtin_clzll(cl)));
     /* ex < 256 since |A| > |B| */
 
     /* If ex=0 or ex=1, the rounding error is bounded by 2 ulps. */
@@ -641,10 +641,10 @@ add_qint (qint64_t *r, const qint64_t *a, const qint64_t *b) {
         chh = ch >> 64;
         clh = cl >> 64;
         ex =
-          chh ? __builtin_clzl(chh)
-          : 64 + (ch ? __builtin_clzl(ch)
-                  : 64 + (clh ? __builtin_clzl(clh)
-                          : 64 + __builtin_clzl(cl)));
+          chh ? __builtin_clzll(chh)
+          : 64 + (ch ? __builtin_clzll(ch)
+                  : 64 + (clh ? __builtin_clzll(clh)
+                          : 64 + __builtin_clzll(cl)));
       }
     if (ex) {
       ch = (ch << ex) | (cl >> (128 - ex));
@@ -735,7 +735,7 @@ add_qint_22 (qint64_t *r, const qint64_t *a, const qint64_t *b) {
 
     /* we cannot have ch=0 since |A| > |B| */
     uint64_t chh = ch >> 64;
-    ex = chh ? __builtin_clzl(chh) : 64 + __builtin_clzl(ch);
+    ex = chh ? __builtin_clzll(chh) : 64 + __builtin_clzll(ch);
 
     /* ex < 128 since |A| > |B| */
 
@@ -755,7 +755,7 @@ add_qint_22 (qint64_t *r, const qint64_t *a, const qint64_t *b) {
 
         /* we cannot have C=0 since |A| > |B| */
         chh = ch >> 64;
-        ex = chh ? __builtin_clzl(chh) : 64 + __builtin_clzl(ch);
+        ex = chh ? __builtin_clzll(chh) : 64 + __builtin_clzll(ch);
         /* rounding error is bounded by 1 ulp(128) */
       }
     ch = ch << ex;
@@ -1136,7 +1136,7 @@ static inline void mul_qint_2 (qint64_t *r, int64_t b, const qint64_t *a) {
   r->ex = a->ex + 64;
 
   /* scale c so that 2^63 <= c < 2^64 */
-  int k = __builtin_clzl (c);
+  int k = __builtin_clzll (c);
   c = c << k;
   r->ex -= k;
 
@@ -1160,7 +1160,7 @@ static inline void mul_qint_2 (qint64_t *r, int64_t b, const qint64_t *a) {
   t3 += (((u128) cy << 64) | (t2 >> 64));
   /* (t3,low(t2):64,low(t1):64) is the sum of the terms of degree 0 to 3 */
 
-  uint32_t ex = __builtin_clzl (t3 >> 64);
+  uint32_t ex = __builtin_clzll (t3 >> 64);
 
   t2 = (t2 << 64) | (t1 & (u128) 0xffffffffffffffff);
 

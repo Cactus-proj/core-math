@@ -5,7 +5,7 @@
 static inline
 void q_extract(int64_t* e, uint64_t* m, long double x) {
 	const b80u80_t cvt_x = {.f = x};
-	int shift = __builtin_ctzl(cvt_x.m);
+	int shift = __builtin_ctzll(cvt_x.m);
 	int exponent = (cvt_x.e&0x7fff) - 16383;	
 	if(exponent == -16383) {exponent++;}
 
