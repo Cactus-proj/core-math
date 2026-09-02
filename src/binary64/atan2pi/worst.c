@@ -91,7 +91,7 @@ uint64_t red (uint64_t x)
 {
   if (x == 0)
     return x;
-  int e = __builtin_ctzll (x);
+  int e = __builtin_ctzl (x);
   return x >> e;
 }
 
