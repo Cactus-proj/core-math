@@ -121,18 +121,18 @@ fastpath(long double x, redinfo* ri, bool* need_accurate) {
 	   |xl0| <= ulp(2^13) = 2^-39
 	*/
 
-	cvt_w.u = ((cvt_x.e&0x8000ull) << (63 - 15)) | (((cvt_x.e&0x7ffful) + (1023ul - 16383ul)) << (64 - 12)) |
+	cvt_w.u = ((cvt_x.e&0x8000ull) << (63 - 15)) | (((cvt_x.e&0x7fffull) + (1023ull - 16383ull)) << (64 - 12)) |
 		((cvt_x.m >> 11) & ~(1ull << 52)); // Explicitely remove leading 1 bit
 	double xh0 = cvt_w.f;
 
 	/* The bottom bit of x's mantissa has weight e - 63, were e is y's exponent.
 	   Therefore, the exponent of xl should (at first) be e - 63 + 52 = e - 11
 	*/
-	cvt_w.u = ((cvt_x.e&0x8000ull) << (63 - 15)) | (((cvt_x.e&0x7ffful) + (1023ul - 16383ul - 11)) << (64 - 12)) |
-		(cvt_x.m & ((1ul << 11) - 1ul));
+	cvt_w.u = ((cvt_x.e&0x8000ull) << (63 - 15)) | (((cvt_x.e&0x7fffull) + (1023ull - 16383ull - 11)) << (64 - 12)) |
+		(cvt_x.m & ((1ull << 11) - 1ull));
 
 	// Replicate parasitic implicit leading bit
-	cvt_aux.u = ((cvt_x.e&0x8000ul) << (63 - 15)) | (((cvt_x.e&0x7ffful) + (1023ul - 16383ul - 11)) << (64 - 12));
+	cvt_aux.u = ((cvt_x.e&0x8000ull) << (63 - 15)) | (((cvt_x.e&0x7fffull) + (1023ull - 16383ull - 11)) << (64 - 12));
 	double xl0 = cvt_w.f - cvt_aux.f; // Remove implicit one introduced before
 
 
@@ -540,7 +540,7 @@ fastpath(long double x, redinfo* ri, bool* need_accurate) {
 	long eh = th.u>>52, el = (tl.u>>52) & 0x3ff, de = eh - el;
 
 	// represent the mantissa of the low part in two's complement format,
-	// where 1l<<52 represents the implicit leading bit
+	// where 1ll<<52 represents the implicit leading bit
 	int64_t ml = (tl.u & ~(0xfffull<<52)) | (1ll<<52), sgnl = -(tl.u >> 63);
 	ml = (ml ^ sgnl) - sgnl;
 	int64_t mlt;
@@ -694,10 +694,10 @@ static inline void
 load_dd (tint_t *a, const dd* toload) {
 	b64u64_u u = {.f = toload->h};
 	a->sgn = u.u >> 63;
-	uint64_t ax = u.u & (-1l ^ (1ull << 63));
+	uint64_t ax = u.u & (-1ll ^ (1ull << 63));
 
 	u.f = toload->l;
-	uint64_t bx = u.u & (-1l ^ (1ull << 63));
+	uint64_t bx = u.u & (-1ll ^ (1ull << 63));
 
 	// We assume toload->h is not 0
 	int64_t exp = (ax >> 52) - 1023;

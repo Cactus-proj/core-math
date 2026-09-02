@@ -283,8 +283,8 @@ add_tint (tint_t *r, const tint_t *a, const tint_t *b)
     t->_h = a->_h - t->_h - (t->_l > a->_l);
     uint64_t th = t->_h >> 64;
     uint64_t ex =
-      th ? __builtin_clzl (th)
-      : (t->_h ? 64 + __builtin_clzl (t->_h) : 128 + __builtin_clzl (t->_l));
+      th ? __builtin_clzll (th)
+      : (t->_h ? 64 + __builtin_clzll (t->_h) : 128 + __builtin_clzll (t->_l));
     if (ex <= 1 || sh == 0) {
       /* The maximal error of 1 ulp for the neglected low part of b is shifted
          by ex bits, thus contributes to < 2 ulps. And for sh=0, there is no
@@ -305,8 +305,8 @@ add_tint (tint_t *r, const tint_t *a, const tint_t *b)
       t->_h = r->_h - t->_h - (t->_l > r->_l);
       th = t->_h >> 64;
       uint64_t ex1 =
-        th ? __builtin_clzl (th)
-        : (t->_h ? 64 + __builtin_clzl (t->_h) : 128 + __builtin_clzl (t->_l));
+        th ? __builtin_clzll (th)
+        : (t->_h ? 64 + __builtin_clzll (t->_h) : 128 + __builtin_clzll (t->_l));
       lshift (r, t, ex1);
       r->ex = a->ex - (ex + ex1);
       /* Since we shifted b left in this case, there is no neglected bit of b,
@@ -356,7 +356,7 @@ static inline void tint_fromd (tint_t *a, double x)
   }
   else { // subnormal
     // 2^-1074 has ax=1
-    e = __builtin_clzl (ax);
+    e = __builtin_clzll (ax);
     a->ex = -0x3f2 - e;
     a->h = ax << e;
   }
