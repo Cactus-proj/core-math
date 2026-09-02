@@ -432,8 +432,8 @@ static double asinpi_small (double x)
   /* We use the Sollya polynomial 0x1.45f306dc9c882a53f84eafa3ea4p-2 * x
      + 0x1.b2995e7b7b606p-5 * x^3, with relative error bounded by 2^-106.965
      on [2^-53, 2^-26] */
-  static double c1h = 0x1.45f306dc9c883p-2, c1l = -0x1.6b01ec5417057p-56;
-  static double c3 = 0x1.b2995e7b7b606p-5;
+  static const double c1h = 0x1.45f306dc9c883p-2, c1l = -0x1.6b01ec5417057p-56,
+    c3 = 0x1.b2995e7b7b606p-5;
   double h = c1h, l = __builtin_fma (c3, x * x, c1l);
   /* multiply h+l by x */
   double hh, ll;
