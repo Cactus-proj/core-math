@@ -19,10 +19,10 @@ jobs:
             https://gitlab.inria.fr/core-math/core-math.git \
             upstream.git
 
-      - name: Update sync branch
+      - name: Update main
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           target_url="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git --git-dir=upstream.git push --force \
-            "$target_url" HEAD:sync
+            "$target_url" HEAD:main
