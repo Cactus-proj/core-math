@@ -1,6 +1,7 @@
 name: Sync upstream
 
 on:
+  # These events do not support branches filters; jobs.sync.if restricts execution to main.
   schedule:
     # 06:00 UTC+8
     - cron: '0 22 * * *'
@@ -19,16 +20,19 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - name: Checkout mirror branch
+        uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0
+
       - name: Fetch upstream
         run: |
-          git clone --bare --single-branch --branch master --no-tags \
-            https://gitlab.inria.fr/core-math/core-math.git \
-            upstream.git
+          git remote add upstream https://gitlab.inria.fr/core-math/core-math.git
+          git fetch --no-tags upstream master
 
       - name: Mirror upstream master
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
-          target_url="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          git --git-dir=upstream.git push --force \
-            "$target_url" refs/heads/master:refs/heads/master
+          git merge --ff-only upstream/master
+          test "$(git rev-parse HEAD)" = "$(git rev-parse upstream/master)"
+          git push origin refs/heads/master:refs/heads/master
