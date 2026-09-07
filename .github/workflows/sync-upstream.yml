@@ -9,20 +9,26 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: sync-upstream-master
+  cancel-in-progress: false
+
 jobs:
   sync:
+    if: github.repository == 'Cactus-proj/core-math' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Fetch upstream
         run: |
-          git clone --bare \
+          git clone --bare --single-branch --branch master --no-tags \
             https://gitlab.inria.fr/core-math/core-math.git \
             upstream.git
 
-      - name: Update main
+      - name: Mirror upstream master
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           target_url="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git --git-dir=upstream.git push --force \
-            "$target_url" HEAD:main
+            "$target_url" refs/heads/master:refs/heads/master
