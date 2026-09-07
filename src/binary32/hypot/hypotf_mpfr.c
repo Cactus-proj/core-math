@@ -36,10 +36,16 @@ ref_hypot (float x, float y)
   mpfr_t xm, ym, zm;
 
   b32u32 xi = {.f = x}, yi = {.f = y};
-  if((xi.u<<1)<(0xff8ull<<20) && (xi.u<<1)>(0xff0ull<<20)) // x = sNAN
+  if((xi.u<<1)<(0xff8ull<<20) && (xi.u<<1)>(0xff0ull<<20)) { // x = sNAN
+    // set the MPFR invalid flag since we test it in check_worst
+    mpfr_set_nanflag ();
     return x + y; // will return qNaN
-  if((yi.u<<1)<(0xff8ull<<20) && (yi.u<<1)>(0xff0ull<<20)) // y = sNAN
+  }
+  if((yi.u<<1)<(0xff8ull<<20) && (yi.u<<1)>(0xff0ull<<20)) { // y = sNAN
+    // set the MPFR invalid flag since we test it in check_worst
+    mpfr_set_nanflag ();
     return x + y; // will return qNaN
+  }
   if((xi.u<<1) == 0){ // x = +/-0
     yi.u = (yi.u<<1)>>1;
     return yi.f;

@@ -114,7 +114,7 @@ is_equal (float y1, float y2)
 int underflow_before = 0;
 
 // return non-zero if the processor raises underflow before rounding
-// (e.g., aarch64)
+// (e.g., aarch64 or s390)
 static void
 check_underflow_before (void)
 {
