@@ -15,12 +15,14 @@ jobs:
     steps:
       - name: Fetch upstream
         run: |
-          git clone --bare --branch master https://gitlab.inria.fr/core-math/core-math.git upstream.git
+          git clone --bare \
+            https://gitlab.inria.fr/core-math/core-math.git \
+            upstream.git
 
       - name: Update main
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          target_url="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git --git-dir=upstream.git push --force \
-            "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
-            master:main
+            "$target_url" HEAD:main
