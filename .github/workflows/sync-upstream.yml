@@ -1,0 +1,38 @@
+name: Sync upstream
+
+on:
+  # These events do not support branches filters; jobs.sync.if restricts execution to main.
+  schedule:
+    # 06:00 UTC+8
+    - cron: '0 22 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-upstream-master
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    if: github.repository == 'Cactus-proj/core-math' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout mirror branch
+        uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0
+
+      - name: Fetch upstream
+        run: |
+          git remote add upstream https://gitlab.inria.fr/core-math/core-math.git
+          git fetch --no-tags upstream master
+
+      - name: Mirror upstream master
+        run: |
+          git merge --ff-only upstream/master
+          test "$(git rev-parse HEAD)" = "$(git rev-parse upstream/master)"
+          git push origin refs/heads/master:refs/heads/master
