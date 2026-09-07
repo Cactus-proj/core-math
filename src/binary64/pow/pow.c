@@ -1553,6 +1553,14 @@ double cr_pow (double x, double y) {
     // x = -inf
     case 0xfff0000000000000:
 
+      /* first check y=+/-inf since is_int uses roundeven_finite
+         which might raise spurious invalid for Inf input */
+      if (_y.u == 0x7ff0000000000000ull)
+        return y; // -Inf^Inf = Inf
+
+      if (_y.u == 0xfff0000000000000ull)
+        return +0.0; // -Inf^-Inf = +0
+
       // y is an odd integer
       if (is_int(y) && !is_int(y * 0.5)) {
 
