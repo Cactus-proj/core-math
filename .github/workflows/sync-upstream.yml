@@ -1,0 +1,26 @@
+name: Sync upstream
+
+on:
+  schedule:
+    # 06:00 UTC+8
+    - cron: '0 22 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch upstream
+        run: |
+          git clone --bare --branch master https://gitlab.inria.fr/core-math/core-math.git upstream.git
+
+      - name: Update main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git --git-dir=upstream.git push --force \
+            "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+            master:main
