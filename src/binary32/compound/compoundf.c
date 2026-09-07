@@ -65,7 +65,7 @@ get_flag (void)
   return _mm_getcsr ();
 #else
   fexcept_t flag;
-  fegetexceptflag (&flag, FE_INEXACT);
+  fegetexceptflag (&flag, FE_INEXACT | FE_OVERFLOW);
   return flag;
 #endif
 }
@@ -76,7 +76,7 @@ set_flag (FLAG_T flag)
 #ifdef __x86_64__
   _mm_setcsr (flag);
 #else
-  fesetexceptflag (&flag, FE_INEXACT);
+  fesetexceptflag (&flag, FE_INEXACT | FE_OVERFLOW);
 #endif
 }
 
@@ -1097,7 +1097,8 @@ float cr_compoundf (float x, float y)
   }
 
   /* we restore the flags, since exp2_1() might yield a spurious overflow,
-     for example for x,y=0x1.59ff68p+71,0x1.cab692p+0 */
+     for example for x,y=0x1.59ff68p+71,0x1.cab692p+0.
+     or x,y=0x1.59ff68p+71,0x1.cab692p+0 */
     set_flag (flag); // restore flags
 
   // fast path failed
