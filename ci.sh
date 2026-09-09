@@ -3,6 +3,7 @@
 # DRY=--dry ./ci.sh to only try compilation (of last modified functions)
 # FORCE=true DRY=--dry ./ci.sh to only try compilation (of all functions)
 # FORCE_FUNCTIONS="xxx yyy" ./ci.sh to force checking xxx and yyy
+# LIST_ONLY=true ./ci.sh to print the selected checks without running them
 # CC=clang CFLAGS=-Werror ./ci.sh
 # SKIPF16=1 ./ci.sh to avoid _Float16 tests
 # SKIPBF16=1 ./ci.sh to avoid __bf16 tests (clang 19 does not properly support them)
@@ -22,12 +23,44 @@ FUNCTIONS_WORST=(acos acosq acosh acospi asin asinq asinh asinpi atan atanq atan
 FUNCTIONS_SPECIAL=(acos acosq acosh acospi asin asinq asinh asinpi atan atanq atan2 atan2f atan2l atan2pi atan2pif atanh atanpi cbrt cbrtl compoundf cos cosh cospi erf erfc exp expl expq exp10 exp10q exp10m1 exp2 exp2l exp2q exp2m1 expm1 expm1q hypot hypotf hypotl hypotq lgamma log log10 log10p1 log1p log2 log2l log2p1 pow powf powl rsqrt rsqrtl rsqrtq sin sincos sinh sinpi tan tanh tanpi tgamma)
 
 echo "Reference commit is $LAST_COMMIT"
+CHANGED_FILES="$(git diff --name-only "$LAST_COMMIT".. --)"
+declare -A FUNCTION_SOURCES
+while IFS= read -r SOURCE; do
+    NAME="${SOURCE##*/}"
+    FUNCTION_SOURCES["${NAME%.c}"]="$SOURCE"
+done < <(find src -mindepth 3 -maxdepth 3 -type f -name '*.c')
+
+affected () {
+    local SOURCE_FILE="${FUNCTION_SOURCES[$FUNCTION]}"
+    local FUNCTION_DIR
+    local FORMAT_DIR
+    if [ -z "$SOURCE_FILE" ]; then
+        return 0
+    fi
+    FUNCTION_DIR="${SOURCE_FILE%/*}"
+    FORMAT_DIR="${FUNCTION_DIR%/*}"
+
+    while IFS= read -r CHANGED; do
+        case "$CHANGED" in
+            "$FUNCTION_DIR"/*|"$FORMAT_DIR/support"/*|src/generic/*)
+                # check.sh copies all three trees for this function.
+                return 0
+                ;;
+            ci.sh|check.sh|ci/*|.gitlab-ci.yml)
+                # Scheduler, driver, probe, and pipeline changes are global.
+                return 0
+                ;;
+        esac
+    done <<< "$CHANGED_FILES"
+
+    return 1
+}
 
 check () {
     KIND="$1"
     if [ "$FORCE" != "" ]; then
         doit=1
-    elif ! { echo "$FORCE_FUNCTIONS" | tr ' ' '\n' | grep --quiet '^'"$FUNCTION"'$'; } && git diff --quiet "$LAST_COMMIT".. -- src/*/*/$FUNCTION.c; then
+    elif ! { echo "$FORCE_FUNCTIONS" | tr ' ' '\n' | grep --quiet '^'"$FUNCTION"'$'; } && ! affected; then
         doit=0
     else
         doit=1
@@ -51,6 +84,11 @@ check () {
     if [ "$doit" == "1" ] && [ "$SKIPQ" == "1" ] && [ "`basename $FUNCTION q`" != "$FUNCTION" ]; then
         echo "libquadmath is needed for" $FUNCTION "but is not available"
         doit=0
+    fi
+
+    if [ "$doit" == "1" ] && [ -n "$LIST_ONLY" ]; then
+        echo "Would check $FUNCTION $KIND"
+        return
     fi
 
     if [ "$doit" == "0" ]; then
