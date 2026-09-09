@@ -14,7 +14,6 @@
 -0x0.fffffffffffffp-1022,0x0.0000000000001p-1022
 0x1.00014d4b1c6b9p-1015,-0x1.000105ba9bf4p-1015
 0x1.6a0a41410b1abp-1004,-0x1.4495fce36a73ep-1023
-0x1.a308e1455f447p+0,0x1.9d931a83ef879p+0
 0x1.205e5d5fee071p-9,0x1.a71193d4eb838p-9
 0x1.6d080c1f5339ep+25,0x1.149ee0ad66632p+13
 -0x1.72b48b14296a7p-510,-0x1.3dcd53d99b107p-518
@@ -27083,3 +27082,6 @@
 0x1.e3ffffffffffdp+78,0x1.5ffffffffffffp+52
 # worst-case for RNDZ with 104 identical bits after the round bit
 0x1.2000000000001p+78,0x1.8000000000001p+52
+# input from Algorithm 1014: An Improved Algorithm for hypot(x,y)
+# by Carlos F. Borges
+0x1.a308e1455f447p+0,0x1.9d931a83ef879p+0
