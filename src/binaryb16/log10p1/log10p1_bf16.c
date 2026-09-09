@@ -261,5 +261,5 @@ __bf16 cr_log10p1_bf16 (__bf16 x){
 
 // dummy function since GNU libc does not provide it
 __bf16 log10p1_bf16 (__bf16 x) {
-  return (__bf16) log10p1f ((float) x);
+  return (__bf16) log1pf ((float) x) / logf (10.0f);
 }
