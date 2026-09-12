@@ -27085,3 +27085,5 @@
 # input from Algorithm 1014: An Improved Algorithm for hypot(x,y)
 # by Carlos F. Borges
 0x1.a308e1455f447p+0,0x1.9d931a83ef879p+0
+# failure found by Eric Hennenhoefer using AI
+0x1.cedbea4c2a3fep-2,0x1.c8b5dbd5e4e6p-1
