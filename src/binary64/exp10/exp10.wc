@@ -65159,3 +65159,5 @@
 -0x1.33a7146f72a42p+8
 -0x1.33a7146f72a41p+8
 -0x1.33a7146f72a40p+8
+# failure found by Eric Hennenhoefer using AI
+-0x1.04ae0d9d99bd5p-10

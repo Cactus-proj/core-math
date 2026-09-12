@@ -347470,3 +347470,6 @@
 0x1.fffffffffffffp+1023
 # errno tests
 -0x1p+0
+# failures found by Eric Hennenhoefer using AI
+0x1.74f64b4b212c9p-9
+-0x1.fffb53e8344d7p-13
