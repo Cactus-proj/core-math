@@ -360,7 +360,7 @@ double cr_exp10(double x){
     {0x1.26bb1bbb55516p+1, 0x1.53524c73cea69p+1, 0x1.0470591fd74e1p+1, 0x1.2bd760a1f32a5p+0};
   double p = (ch[0] + dx*ch[1]) + dx2*(ch[2] + dx*ch[3]);
   double fh = th, fx = th*dx, fl = tl + fx*p;
-  double eps = 1.63e-19;
+  double eps = 2.17e-19;
   if(__builtin_expect(ix.u<0xc0733a7146f72a42ull, 0)){
     // x > -0x1.33a7146f72a42p+8
     double ub = fh + (fl + eps), lb = fh + (fl - eps);

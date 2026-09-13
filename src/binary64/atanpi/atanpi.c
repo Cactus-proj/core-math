@@ -418,8 +418,8 @@ double cr_atanpi (double x){
     /* The rounding error in muldd_acc and the approximation error between
        1/pi and ONE_OVER_PIH + ONE_OVER_PIL are covered by the difference
        between 0x4.8p-52*pi and 0x1.6fp-52, which is > 2^-61.8. */
-    double ub = h + __builtin_fma (0x1.6fp-68, x, l);
-    double lb = h + __builtin_fma (-0x1.6fp-68, x, l);
+    double ub = h + __builtin_fma (0x1.8dp-68, x, l);
+    double lb = h + __builtin_fma (-0x1.8dp-68, x, l);
     if (__builtin_expect (ub == lb, 1)) return ub;
     // end_atanpi
     ub = (f + f*0x4.8p-52) + x; // atanpi_specific, original value in atan.c

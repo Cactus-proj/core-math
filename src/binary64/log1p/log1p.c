@@ -310,7 +310,7 @@ double cr_log1p(double x){
     double x2 = x*x;
     if(__builtin_expect(ax<0x7e60000000000000ull, 1)){ // |x| < 0x1p-12
       ln1 = x;
-      eps = 0x1.6p-64*x;
+      eps = 0x1.ap-64*x;
       if(__builtin_expect(ax<0x7d43360000000000ull, 1)){ // |x| < 0x1.19bp-21
 	static const double c[] = {-0x1.00000000001d1p-1, 0x1.55555555558f7p-2};
 	ln0 = x2*(c[0] + x*c[1]);
@@ -330,7 +330,7 @@ double cr_log1p(double x){
       double f = ((c[0]+x*c[1])+x2*(c[2]+x*c[3])) +
 	x4*(((c[4]+x*c[5])+x2*(c[6]+x*c[7])) + x4*((c[8]+x*c[9])+x2*(c[10]+x*c[11])));
       ln0 += x3*f;
-      eps = x3*0x1.94p-52;
+      eps = x3*0x1.a8p-52;
     }
   } else { // |x| >= 0.0625
     static const double c[] = {

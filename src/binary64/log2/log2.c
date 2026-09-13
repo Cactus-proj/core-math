@@ -181,7 +181,7 @@ double cr_log2(double x){
   double lh = lt + dxh, ll = (lt - lh) + dxh;
   ll += ((l1[i1][0] + l2[i2][0]) + dxl) + dxh*l2l;
   ll += f;
-  const double eps = 1.6e-22;
+  const double eps = 2.64e-22;
   double lb = lh + (ll - eps), ub = lh + (ll + eps);
   if(__builtin_expect(lb==ub, 1)) return lb;
   return as_log2_refine(x, ub);

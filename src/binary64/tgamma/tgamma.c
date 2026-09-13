@@ -763,7 +763,7 @@ double cr_tgamma(double x){
       rh = -rh;
       rl = -rl;
     }
-    double eps = rh*(6.5e-21 - x*1.46e-22);
+    double eps = rh*(8.7e-21 - x*1.46e-22);
     b64u64_u th;
     if(__builtin_expect(ip>=-170,1)){ // -171 < x < -3
       // rev. 221543c fails for 0.617*eps with x=-0x1.001ee4721504bp+3 (rndd)
@@ -800,7 +800,7 @@ double cr_tgamma(double x){
   if(x>4){
     double ll = 0, lh = as_lgamma_asym(x,&ll);
     int e; lh = as_expd(lh, &ll, &e);
-    double eps = lh*(2e-21 + x*1.5e-22);
+    double eps = lh*(2e-21 + x*1.84e-22);
     // revision 221543c fails for 0.686*eps with x=0x1.4ff0587da08e6p+7 (rndz)
     double ub = lh + (ll + eps), lb = lh + (ll - eps);
     if(ub != lb) return as_tgamma_accurate(x);

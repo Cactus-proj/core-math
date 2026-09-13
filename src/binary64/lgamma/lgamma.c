@@ -1004,7 +1004,7 @@ double cr_lgamma(double x){
 	z = ax - 2;
 	fh = mulddd(z, fh,fl, &fl);
       }
-      eps = __builtin_fabs(fh)*8.3e-20 + 1e-24;
+      eps = __builtin_fabs(fh)*8.7e-20 + 1e-24;
     }
     if(t.u>>63){ // x<0 so use reflection formula
       double sl, sh = as_sinpipid(x - __builtin_floor(x), &sl);
@@ -1013,7 +1013,7 @@ double cr_lgamma(double x){
       ll += sl/sh;
       fh = -sumdd(fh,fl,lh,ll, &fl);
       fl = -fl;
-      eps += __builtin_fabs(lh)*4e-22;
+      eps += __builtin_fabs(lh)*8e-22;
       int64_t k = fx;
       signgam = 1 - 2*(k & 1);
     } else {

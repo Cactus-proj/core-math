@@ -190,7 +190,7 @@ static double  __attribute__((noinline)) as_hypot_hard(double x, double y, const
       if(__builtin_expect(D != 0, 1))
 	rm += D>>63;
       else
-	rm -= rm&1;
+	rm -= rm&(1<<(1-(rm<=(1ll<<53))));
     } else {
       rm -= (op==1)<<(rm>(1ll<<53));
     }
