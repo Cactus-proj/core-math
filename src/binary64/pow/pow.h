@@ -29,8 +29,7 @@ SOFTWARE.
 #define CR_POW_H
 
 #include <stdint.h>
-
-#include <math.h>
+#include <math.h> // needed for NAN and INFINITY
 #include <errno.h>
 
 /*
@@ -307,7 +306,7 @@ static inline double dint_tod(dint64_t *a, int exact) {
   if (__builtin_expect (a->ex < -1022, 0))
     return dint_tod_subnormal (a, exact);
 
-  // r is the significant in [1,2)
+  // r is the significand in [1,2)
   f64_u r = {.u = (a->hi >> 11) | (0x3ffll << 52)};
 
   // round r

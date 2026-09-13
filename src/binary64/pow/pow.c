@@ -1278,20 +1278,23 @@ exact_pow (double *r, double x, double y, const dint64_t *z,
     int64_t k;
     round_54 (&G, &k, z); /* z is rounded to k*2^G */
 
-    /* Check condition at line 2 from [4]:
+    /* In case exact=0, check condition at line 2 from [4]:
        if |2^G*k-z| >= 2^-116*z, then return false
        This test is not needed if the relative error from
        the 2nd phase is less than 2^-116, since if |2^G*k-z| >= 2^-116*z
        the rounding test from the 2nd phase did succeed.
     */
-    int cnt = __builtin_clzll (k);
-    dint64_t d = { .hi = (uint64_t)k << cnt, .lo = 0, .ex = G + 63 - cnt, .sgn = 1 - z->sgn };
-    add_dint (&d, z, &d); /* exact by Sterbenz theorem */
-    /* multiply d by 2^116 */
-    d.ex += 116;
+    if (!exact) {
+      int cnt = __builtin_clzll (k);
+      dint64_t d = { .hi = (uint64_t)k << cnt, .lo = 0, .ex = G + 63 - cnt,
+                     .sgn = 1 - z->sgn };
+      add_dint (&d, z, &d); /* exact by Sterbenz theorem */
+      /* multiply d by 2^116 */
+      d.ex += 116;
     /* compare in absolute value with z */
-    if (cmp_dint_abs (&d, z) >= 0)
-      return 0;
+      if (cmp_dint_abs (&d, z) >= 0)
+        return 0;
+    }
 
     if (G > g)
       return 0;
