@@ -88,6 +88,8 @@ get_random (int tid)
 static void
 check (double x)
 {
+#pragma omp atomic update
+  tested ++;
   double y1 = ref_asin (x);
   fesetround (rnd1[rnd]);
   double y2 = cr_asin (x);
@@ -132,7 +134,7 @@ static void scan_consecutive_aux(int64_t n, double x){
   int e, e1;
   frexp (x, &e);
   b64u64_u v = {.f = x};
-  v.u = (x > 0) ? v.u + (n - 1) : v.u - (n - 1);
+  v.u = v.u + (n - 1);
   frexp (v.f, &e1);
   if (e1 != e) {
     fprintf (stderr, "Error, different binades in scan_consecutive\n");
@@ -146,26 +148,27 @@ static void scan_consecutive_aux(int64_t n, double x){
     /* 2^(e-1) <= |x| < 2^e thus ulp(x) = 2^(e-53) */
     d = ldexp (d, e - 53); // multiply d by ulp(x)
     dd = ldexp (dd, 2 * (e - 53)); // multiply dd by ulp(x)^2
-    /* we want j^2*dd < 2^-11 ulp(h) so that the 2nd-order term
+    /* we want j^2*|dd| < 2^-11 ulp(h) so that the 2nd-order term
        produces an error bounded by 2^-11 ulp(h), to that MPFR
        will be called with probability about 2^-11.
        Thus approximately j^2*dd < 2^-64 h,
        or j < 2^-32 sqrt(h/dd) */
-    int64_t jmax = 0x1p-32 * sqrt (h / dd);
+    int64_t jmax = 0x1p-32 * sqrt (fabs (h) / dd);
     if (jmax > n) jmax = n; // cap to n
     if (jmax == 0) jmax = 1; // ensure progress
+    if (x < 0) l = -l;
     for(int64_t j=0;j<jmax;j++){
       v.f = x;
-      // for negative numbers, we have to subtract j
-      v.u = (x > 0) ? v.u + j : v.u - j;
+      v.u = v.u + j;
       double t = tfun (v.f);
-      // acosh(x+j*u) is approximated by h + l + j*d
-      double w = h + __builtin_fma (j, d, l);
+      // asin(x+/-j*u) is approximated by h +/- (l + j*d)
+      double w = (x > 0) ? h + __builtin_fma (j, d, l)
+        : h - __builtin_fma (j, d, l);
       if (t != w) // expensive test
         check(v.f);
     }
     n -= jmax;
-    x += jmax * ldexp (1.0, e - 53);
+    x += jmax * ldexp ((x > 0) ? 1.0 : -1.0, e - 53);
   }
 }
 
@@ -185,9 +188,8 @@ static void scan_consecutive (int64_t n, double x){
 #endif
   for (int i = 0; i < nthreads; i++) {
     int64_t ni = i * h;
-    // Warning: if x < 0, we should subtract ni
-    double xi = (x > 0) ? asfloat64 (asuint64 (x) + ni)
-      : asfloat64 (asuint64 (x) - ni);
+    // if x < 0, we scan away from zero
+    double xi = asfloat64 (asuint64 (x) + ni);
     int64_t hi = (ni + h > n) ? n - ni : h;
     scan_consecutive_aux (hi, xi);
   }
