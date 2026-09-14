@@ -1,6 +1,6 @@
 /* Correctly rounded exp2 function for binary64 values.
 
-Copyright (c) 2023-2025 Alexei Sibidanov.
+Copyright (c) 2023-2026 Alexei Sibidanov <sibid@uvic.ca>.
 
 This file is part of the CORE-MATH project
 (https://core-math.gitlabpages.inria.fr/).
@@ -357,7 +357,7 @@ double cr_exp2(double x){
   static const double c[] =
     {0x1.62e42fefa39efp-13, 0x1.ebfbdff82c58fp-27, 0x1.c6b08d73b3e01p-41, 0x1.3b2ab6fdda001p-55};
   double tz = th*z, fh = th, fl = tz*((c[0] + z*c[1]) + z2*(c[2] + z*c[3])) + tl;
-  double eps = 1.64e-19;
+  double eps = 0x1.fdp-63;
   if(__builtin_expect(ix.u<=0xc08ff00000000000ull, 1)){ // x >= -1022
     // warning: on 32-bit machines, __builtin_expect(frac,1) does not work
     // since only the low 32 bits of frac are taken into account

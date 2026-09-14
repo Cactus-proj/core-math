@@ -1,6 +1,6 @@
 /* Correctly rounded log(1+x) for binary64 values.
 
-Copyright (c) 2024-2025 Alexei Sibidanov.
+Copyright (c) 2024-2026 Alexei Sibidanov <sibid@uvic.ca>.
 
 This file is part of the CORE-MATH project
 (https://core-math.gitlabpages.inria.fr/).
@@ -330,7 +330,7 @@ double cr_log1p(double x){
       double f = ((c[0]+x*c[1])+x2*(c[2]+x*c[3])) +
 	x4*(((c[4]+x*c[5])+x2*(c[6]+x*c[7])) + x4*((c[8]+x*c[9])+x2*(c[10]+x*c[11])));
       ln0 += x3*f;
-      eps = x3*0x1.a8p-52;
+      eps = x3*0x1.b6p-52;
     }
   } else { // |x| >= 0.0625
     static const double c[] = {

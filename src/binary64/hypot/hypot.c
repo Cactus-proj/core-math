@@ -1,6 +1,6 @@
 /* Correctly-rounded Euclidean distance function (hypot) for binary64 values.
 
-Copyright (c) 2022-2025 Alexei Sibidanov.
+Copyright (c) 2022-2026 Alexei Sibidanov <sibid@uvic.ca>.
 
 This file is part of the CORE-MATH project
 (https://core-math.gitlabpages.inria.fr/).
@@ -275,7 +275,8 @@ double cr_hypot(double x, double y){
   ex &= 0x7ffll<<52;
   u64 aidr = ey + (0x3fell<<52) - ex;
   u64 mid = (aidr - 0x3c90000000000000 + 16)>>5;
-  if(__builtin_expect( mid==0 || aidr<0x39b0000000000000ull || aidr>0x3c9fffffffffff80ull, 0)) 
+  u64 midm = (aidr - 0x3c80000000000000 + 16)>>5;
+  if(__builtin_expect( mid==0 || midm==0 || aidr<0x39b0000000000000ull || aidr>0x3c9fffffffffff80ull, 0))
     thd.f = as_hypot_hard(x,y,flag);
   thd.u -= off;
   if(__builtin_expect(thd.u>=(0x7ffull<<52), 0)) return as_hypot_overflow();

@@ -1,6 +1,6 @@
 /* Correctly-rounded arctangent of binary64 value.
 
-Copyright (c) 2023 Alexei Sibidanov.
+Copyright (c) 2023-2026 Alexei Sibidanov <sibid@uvic.ca>.
 
 This file is part of the CORE-MATH project
 (https://core-math.gitlabpages.inria.fr/).
@@ -250,7 +250,8 @@ double cr_atan(double x){
     }
     double x2 = x*x, x3 = x*x2, x4 = x2*x2;
     double f = x3*((ch2[0] + x2*ch2[1]) + x4*(ch2[2] + x2*ch2[3]));
-    double ub = (f + f*0x4.8p-52) + x, lb = (f - f*0x2.8p-52) + x;
+    double epsp = f*0x1.6p-50, epsm = f*0x1.6p-51;
+    double ub = (f + epsp) + x, lb = (f - epsm) + x;
     if(__builtin_expect(ub == lb, 1)) return ub;
     return as_atan_refine2(x, ub);
   }

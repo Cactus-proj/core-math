@@ -1,6 +1,6 @@
 /* Correctly-rounded sine of binary64 value for angles in half-revolutions
 
-Copyright (c) 2023-2025 Alexei Sibidanov.
+Copyright (c) 2023-2026 Alexei Sibidanov <sibid@uvic.ca>.
 
 This file is part of the CORE-MATH project
 (https://core-math.gitlabpages.inria.fr/).
@@ -229,7 +229,7 @@ double cr_sinpi(double x){
   double fs = sn[0] + z2*(sn[1] + z2*sn[2]);
   double fc = cn[0] + z2*cn[1];
   double sh,sl,ch,cl; sincosn(iq,&sh,&sl,&ch,&cl);
-  double er = 5.5e-19;
+  double er = __builtin_fabs(z)*0x1p-123 + 0x1p-78;
   double r = sl + sh*(z2*fc) + ch*(z*fs);
   double lb = (r - er) + sh, ub = (r + er) + sh;
   if(__builtin_expect(lb == ub,1)) return lb;
