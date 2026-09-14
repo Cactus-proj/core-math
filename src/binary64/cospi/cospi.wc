@@ -37986,3 +37986,5 @@
 -0x1.fffffffffffffp+1023
 # exercise undefined behavior with clang sanitizer
 0x1.5f4721c0fffffp+52
+# failure found by Eric Hennenhoefer using AI
+0x1.ecffffffa6636p-2
