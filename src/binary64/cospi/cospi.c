@@ -176,7 +176,14 @@ double cr_cospi(double x){
   }
   
   int32_t si = e-1011;
-  if(__builtin_expect(si>=0 && (((uint64_t)m<<si)^0x8000000000000000ll)==0, 0)) return 0.0;
+  if(__builtin_expect(si>=0&&(m<<(si+1))==0, 0)) { // x is integer or half-integer
+    if ((m<<si) == 0){ // x is integer
+      int t = (m<<(si-1))>>63;
+      // t = 0 if |x| = 1/2 mod 2, t = 1 if |x| = 3/2 mod 2
+      return t?-1.0:1.0;
+    }
+    return 0.0;
+  }
 
   uint64_t iq = ((m>>s) + 2048)&8191;
   iq = (iq + 1)>>1;
