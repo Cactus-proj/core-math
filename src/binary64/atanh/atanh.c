@@ -460,12 +460,16 @@ static double as_atanh_refine(double x, double zh, double zl, double a){
   sh = adddd(sh, sl, L[1], L[2], &sl);
   double v2, v0 = fasttwosum(L[0], sh, &v2), v1 = fasttwosum(v2, sl, &v2);
   t.f = v1;
-  if(__builtin_expect(!(t.u&(~(uint64_t)0>>12)), 0)){
-    b64u64_u w = {.f = v2};
-    if((w.u^t.u)>>63)
-      t.u--;
-    else
-      t.u++;
+  if(__builtin_expect(!(t.u&(~(uint64_t)0>>12)), 0)){ // is v1 a power of 2?
+    /* we enter here only for 5 values up to sign:
+     * 0x1.110e96a6c2d96p-2: 49 identical bits after round bit
+     * 0x1.2dbb7b1c91363p-2: 50 identical bits after round bit
+     * 0x1.c493dc899e4a5p-2: 50 identical bits after round bit (only with FMA)
+     * 0x1.dc3fe1b524821p-2: 49 identical bits after round bit (only without FMA)
+     * 0x1.64279e7c7064bp-1: 50 identical bits after round bit (only without FMA)
+     In all cases v1 and v2 are of same sign, thus we add sign(v1)*ulp(v1) to v1.
+     */
+    t.u++;
     v1 = t.f;
   }
   b64u64_u t0 = {.f = v0};
