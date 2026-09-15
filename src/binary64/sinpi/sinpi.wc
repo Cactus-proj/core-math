@@ -56450,3 +56450,6 @@
 0x1.cp+1
 0x1.fffffffffffffp+51
 0x1.ffffffffffffdp+51
+# the following inputs improve coverage (AI generated)
+-0x1.0000000000000p+41
+-0x1.0000000000000p-100

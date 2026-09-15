@@ -249114,3 +249114,6 @@
 0x1.f01d345cfdeb6p-2
 0x1.f01d345a2e867p-2
 0x1.f01d345cbfd33p-2
+# the following inputs improve coverage (AI generated)
+0x1.ffe03e7c2036bp-1
+0x1.ffe44d903cef4p-1

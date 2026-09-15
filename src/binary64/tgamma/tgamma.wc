@@ -545546,3 +545546,9 @@
 -0x1.ff8074251bef6p+1
 -0x1.ff807426e02e2p+1
 -0x1.ff80742715c64p+1
+# the following inputs improve coverage (AI generated)
+-0x0p+0
+-inf
+-qnan
+0x1.0000000000000p+10
+inf

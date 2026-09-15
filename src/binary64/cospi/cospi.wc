@@ -37988,3 +37988,5 @@
 0x1.5f4721c0fffffp+52
 # failure found by Eric Hennenhoefer using AI
 0x1.ecffffffa6636p-2
+# the following inputs improve coverage (AI generated)
+-0x1.0000000000001p+51

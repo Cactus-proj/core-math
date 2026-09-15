@@ -33255,3 +33255,5 @@
 0x1.0397968a4b48cp+0
 0x1.0397968a87d7ep+0
 0x1.0397968ab9793p+0
+# the following inputs improve coverage (AI generated)
+0x1.ffffcf3070433p-1
