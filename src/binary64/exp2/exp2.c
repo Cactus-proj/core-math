@@ -120,7 +120,7 @@ static inline double polydd(double xh, int n, const double c[][2], double *l){
 
 static inline double as_ldexp(double x, i64 i){
 #ifdef __x86_64__
-  __m128i sb = {(i64)i<<52, 0};
+  __m128i sb = {(u64)i<<52, 0};
 #if defined(__clang__)
   __m128d r = _mm_set_sd(x);
 #else
