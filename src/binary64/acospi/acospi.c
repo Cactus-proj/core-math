@@ -840,7 +840,8 @@ accurate_path (double x)
     if (x == exceptions[a][0])
     {
       double hi = exceptions[a][1];
-      int8_t del = (hi > 0) ? exceptions_rnd[a] : -exceptions_rnd[a];
+      // hi > 0 for all exceptions
+      int8_t del = exceptions_rnd[a];
       return hi + hi * 0x1p-54 * (double) del;
     }
     // for |x| <= 0x1.921fb54442d18p-54, acospi(x) rounds to 0.5 to nearest
