@@ -54,15 +54,10 @@ static __attribute__((noinline)) float as_special(float x){
 
 static double poly12(double z, const double *c){
   double z2 = z*z, z4 = z2*z2;
-  double c0 = c[0] + z*c[1];
-  double c2 = c[2] + z*c[3];
-  double c4 = c[4] + z*c[5];
-  double c6 = c[6] + z*c[7];
-  double c8 = c[8] + z*c[9];
-  double c10 = c[10] + z*c[11];
-  c0 += c2*z2;
-  c4 += c6*z2;
-  c8 += z2*c10;
+  double d[6];
+  for (int i = 0; i < 6; i++)
+    d[i] = c[2*i]+z*c[2*i+1];
+  double c0 = d[0] + d[1]*z2, c4 = d[2] + d[3]*z2, c8 = d[4] + d[5]*z2;
   c0 += z4*(c4 + z4*c8);
   return c0;
 }
