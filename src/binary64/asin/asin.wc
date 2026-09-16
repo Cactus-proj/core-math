@@ -249117,3 +249117,14 @@
 # the following inputs improve coverage (AI generated)
 0x1.ffe03e7c2036bp-1
 0x1.ffe44d903cef4p-1
+# failures with a reduced error bound
+0x1.097b6321f12d4p-2
+0x1.0992e08e6741p-2
+0x1.09cd6d60746fap-2
+0x1.0a6040004f2efp-2
+0x1.0c8ec000830cbp-2
+0x1.0cd5800188563p-2
+0x1.0e0f0002315a9p-2
+0x1.18ce8000137cp-2
+0x1.18eda000120d4p-2
+
