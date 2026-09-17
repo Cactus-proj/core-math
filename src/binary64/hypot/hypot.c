@@ -119,8 +119,11 @@ static double __attribute__((noinline)) as_hypot_denorm(u64 a, u64 b){
         // (since ulp(tm) = 2^-1075)
         if (rm >> 52 && rb2) underflow = 0;
       }
-      else // sticky bit is 0, round bit is 1: underflow doos not change
-	rm += rm & 1; // even rounding
+      /* We cannot have rb=1 and sb=0 (midpoint case) in the subnormal range.
+         Indeed, this would mean x=a*2^-1074, y=b*2^-1074, z=(k+1/2)*2^-1074
+         with a, b, k integers and x^2+y^2=z^2. This would imply
+         a^2+b^2 = (k+1/2)^2 which is impossible: the left-hand side is an
+         integer, while the right-hand side is 1/4 mod 1. */
     } else if (op > 1.0) { // rounding upwards
       rm ++;
       // we have no underflow when rm is now 2^52 and tm was odd
