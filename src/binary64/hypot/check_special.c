@@ -354,7 +354,7 @@ check_triples_subnormal (void)
         {
           uint64_t nn = n * n;
           uint64_t xx = x * nn, yy = y * nn, zz = z * nn;
-          if (zz > 0xffffffffffffful)
+          if (zz >> 53) // zz >= 2^53
             break;
           check (ldexp (xx, -1074), ldexp (yy, -1074));
         }
