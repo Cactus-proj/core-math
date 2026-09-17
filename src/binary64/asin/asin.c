@@ -232,8 +232,8 @@ double cr_asin(double x){
     t = __builtin_fma(x,x,-0x1p-7*jd);
     z = x;
     zl = 0;
-    // fails for 0x1.57p-52 with x=0x1.e481e0011027fp-2 (rndz, no FMA)
-    eps = __builtin_fabs(z*t)*0x1.58p-52;
+    // fails for 0x1.60p-52 with x=0x1.e493c0100f586p-2 (rndz, no FMA)
+    eps = __builtin_fabs(z*t)*0x1.61p-52;
   }
   // asin(xh+xl) = (xh + xl)*(cc[j][0] + (cc[j][1] + t*Poly(t, cc[j]+2)))
   // where t = xh^2 - j/128 and j = round(128*xh^2)
